@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  web1:
+    image: nginx:latest
+    ports:
+      - "8080:80"
+    
+  web2:
+    image: nginx:latest
+    ports:
+      - "8080:80"  # Same port as web1 - will cause conflict!
