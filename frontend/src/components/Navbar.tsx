@@ -41,7 +41,7 @@ const Navbar = () => {
 
         {/* GitHub Button */}
         <motion.a
-          href="https://github.com"
+          href="https://github.com/radheshpai87/checkDK"
           target="_blank"
           rel="noopener noreferrer"
           className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:text-white hover:border-indigo-500/50 transition-all text-sm font-medium"

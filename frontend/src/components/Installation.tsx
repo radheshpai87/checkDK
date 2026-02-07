@@ -1,6 +1,15 @@
 import { motion } from "framer-motion";
+import { useState } from "react";
 
 const Installation = () => {
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  const copyToClipboard = (text: string, index: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
   const requirements = [
     {
       title: "Python 3.10+",
@@ -118,8 +127,25 @@ const Installation = () => {
                     <div className="flex-1">
                       <h4 className="text-xl font-semibold mb-2 text-white">{step.title}</h4>
                       <p className="text-slate-400 text-sm mb-4">{step.description}</p>
-                      <div className="bg-slate-950 rounded-xl p-4 border border-slate-800">
-                        <code className="text-cyan-400 font-mono text-base">{step.code}</code>
+                      <div className="relative bg-slate-950 rounded-xl border border-slate-800 group/code">
+                        <div className="flex items-center justify-between p-4 pr-3">
+                          <code className="text-cyan-400 font-mono text-base flex-1">{step.code}</code>
+                          <button
+                            onClick={() => copyToClipboard(step.code, index)}
+                            className="flex-shrink-0 ml-3 p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700 opacity-0 group-hover/code:opacity-100 transition-all duration-200"
+                            title="Copy to clipboard"
+                          >
+                            {copiedIndex === index ? (
+                              <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
