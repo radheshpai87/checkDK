@@ -1,7 +1,16 @@
-import { motion } from "framer-motion";
+import { useRef } from "react";
 import { BackgroundGradient } from "./ui/BackgroundGradient";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const Features = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const cardsRef = useRef<HTMLDivElement>(null);
+
   const features = [
     {
       icon: <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -57,25 +66,46 @@ const Features = () => {
       color: 'from-rose-500 to-red-500',
       iconColor: 'text-rose-700'
     }
-  ]
+  ];
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
+  useGSAP(() => {
+    const cards = gsap.utils.toArray(".feature-card");
+
+    // Animate Title
+    gsap.fromTo(titleRef.current,
+      { opacity: 0, y: 50 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 1,
+        scrollTrigger: {
+          trigger: titleRef.current,
+          start: "top 80%",
+          toggleActions: "play none none reverse"
+        }
       }
-    }
-  }
+    );
 
-  const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-  }
+    // Animate Cards with stagger
+    gsap.fromTo(cards,
+      { opacity: 0, y: 50, scale: 0.9 },
+      {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        duration: 0.8,
+        stagger: 0.1,
+        scrollTrigger: {
+          trigger: cardsRef.current,
+          start: "top 75%",
+          toggleActions: "play none none reverse"
+        }
+      }
+    );
+  }, { scope: containerRef });
 
   return (
-    <section id="features" className="py-24 px-6 bg-slate-900/50 relative overflow-hidden">
+    <section ref={containerRef} id="features" className="py-24 px-6 bg-slate-900/50 relative overflow-hidden">
       {/* Background accents */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-[100px]" />
@@ -83,24 +113,19 @@ const Features = () => {
       </div>
 
       <div className="max-w-7xl mx-auto relative z-10">
-        <motion.h2
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+        <h2
+          ref={titleRef}
           className="text-5xl md:text-6xl font-bold text-center mb-20 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-white"
         >
           Why checkDK?
-        </motion.h2>
-        
-        <motion.div
-          variants={container}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
+        </h2>
+
+        <div
+          ref={cardsRef}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
         >
           {features.map((feature, index) => (
-            <motion.div key={index} variants={item}>
+            <div key={index} className="feature-card h-full">
               <BackgroundGradient className="h-full group">
                 <div className="flex flex-col h-full">
                   <div className={`inline-flex w-fit p-3 rounded-xl bg-gradient-to-r ${feature.color} bg-opacity-10 mb-4 ${feature.iconColor}`}>
@@ -110,9 +135,9 @@ const Features = () => {
                   <p className="text-slate-300 leading-relaxed group-hover:text-slate-200 transition-colors">{feature.description}</p>
                 </div>
               </BackgroundGradient>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       </div>
     </section>
   )
