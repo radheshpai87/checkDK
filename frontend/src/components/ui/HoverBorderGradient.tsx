@@ -15,6 +15,7 @@ export const HoverBorderGradient = ({
     containerClassName?: string;
     className?: string;
     duration?: number;
+    href?: string;
   } & React.HTMLAttributes<HTMLElement>
 >) => {
   return (

@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
+import GSAPTypewriter from "./ui/GSAPTypewriter";
 
 const Installation = () => {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
@@ -123,13 +124,15 @@ const Installation = () => {
                     <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold shadow-lg">
                       {step.number}
                     </div>
-                    
+
                     <div className="flex-1">
                       <h4 className="text-xl font-semibold mb-2 text-white">{step.title}</h4>
                       <p className="text-slate-400 text-sm mb-4">{step.description}</p>
                       <div className="relative bg-slate-950 rounded-xl border border-slate-800 group/code">
-                        <div className="flex items-center justify-between p-4 pr-3">
-                          <code className="text-cyan-400 font-mono text-base flex-1">{step.code}</code>
+                        <div className="flex items-center justify-between p-4 pr-3 min-h-[3.5rem]">
+                          <div className="text-cyan-400 font-mono text-base flex-1">
+                            <GSAPTypewriter text={step.code} delay={index * 2 + 1} />
+                          </div>
                           <button
                             onClick={() => copyToClipboard(step.code, index)}
                             className="flex-shrink-0 ml-3 p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700 opacity-0 group-hover/code:opacity-100 transition-all duration-200"
