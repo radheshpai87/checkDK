@@ -1,4 +1,4 @@
-import React from "react";
+
 import { motion } from "framer-motion";
 
 export const Meteors = ({ number = 16 }: { number?: number }) => {
@@ -9,7 +9,7 @@ export const Meteors = ({ number = 16 }: { number?: number }) => {
         const duration = Math.random() * 1.5 + 2;
         const delay = idx * 1.2 + Math.random() * 5;
         const startX = Math.floor(Math.random() * 40) - 10;
-        
+
         return (
           <motion.div
             key={idx}
@@ -44,7 +44,7 @@ export const Meteors = ({ number = 16 }: { number?: number }) => {
             >
               <div className="relative" style={{ transform: 'rotate(45deg)' }}>
                 {/* Bright meteor head */}
-                <div 
+                <div
                   className="absolute top-0 right-0 rounded-full"
                   style={{
                     width: '3px',
@@ -53,9 +53,9 @@ export const Meteors = ({ number = 16 }: { number?: number }) => {
                     boxShadow: '0 0 18px 4px rgba(199, 210, 254, 0.6), 0 0 8px 2px rgba(255, 255, 255, 0.8)',
                   }}
                 />
-                
+
                 {/* Main trail */}
-                <div 
+                <div
                   className="absolute top-1/2 right-0 -translate-y-1/2"
                   style={{
                     width: '85px',
@@ -64,9 +64,9 @@ export const Meteors = ({ number = 16 }: { number?: number }) => {
                     filter: 'blur(0.5px)',
                   }}
                 />
-                
+
                 {/* Soft glow trail */}
-                <div 
+                <div
                   className="absolute top-1/2 right-0 -translate-y-1/2"
                   style={{
                     width: '100px',

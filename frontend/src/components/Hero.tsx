@@ -1,69 +1,109 @@
-import { motion } from "framer-motion";
+import { useRef } from "react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 import { HoverBorderGradient } from "./ui/HoverBorderGradient";
+// import { TextShimmer } from "./ui/TextShimmer"; // Removing TextShimmer to use GSAP for text effect if needed, or keep it. Let's keep it for now but wrap in GSAP.
 import { TextShimmer } from "./ui/TextShimmer";
 import { Meteors } from "./ui/Meteors";
 
 const Hero = () => {
+  const containerRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const glow1Ref = useRef<HTMLDivElement>(null);
+  const glow2Ref = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+
+  useGSAP(() => {
+    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+    // Initial state setup (to prevent flash of unstyled content)
+    gsap.set([contentRef.current?.children], { opacity: 0, y: 30 });
+    gsap.set(titleRef.current, { y: 50, opacity: 0 });
+
+    // Entrance Animation
+    tl.to(contentRef.current?.children || [], {
+      y: 0,
+      opacity: 1,
+      duration: 1,
+      stagger: 0.15,
+      delay: 0.2
+    });
+
+    // Parallax Effect
+    const handleMouseMove = (e: MouseEvent) => {
+      const { clientX, clientY } = e;
+      const x = (clientX / window.innerWidth - 0.5) * 2;
+      const y = (clientY / window.innerHeight - 0.5) * 2;
+
+      gsap.to(glow1Ref.current, {
+        x: x * 50,
+        y: y * 50,
+        duration: 2,
+        ease: "power2.out",
+      });
+
+      gsap.to(glow2Ref.current, {
+        x: -x * 50,
+        y: -y * 50,
+        duration: 2,
+        ease: "power2.out",
+      });
+
+      gsap.to(titleRef.current, {
+        x: x * 10,
+        y: y * 10,
+        rotationY: x * 5,
+        rotationX: -y * 5,
+        duration: 1,
+        ease: "power2.out",
+      });
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, { scope: containerRef });
+
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-slate-950">
+    <section ref={containerRef} className="relative min-h-screen flex items-center justify-center overflow-hidden bg-slate-950 perspective-1000">
       <Meteors number={16} />
-      
+
       {/* Ambient glow effects */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 -left-1/4 w-1/2 h-1/2 bg-indigo-500/20 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-purple-500/20 rounded-full blur-[120px]" />
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div ref={glow1Ref} className="absolute top-1/4 -left-1/4 w-1/2 h-1/2 bg-indigo-500/20 rounded-full blur-[120px]" />
+        <div ref={glow2Ref} className="absolute bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-purple-500/20 rounded-full blur-[120px]" />
       </div>
-      
-      <div className="relative z-10 max-w-5xl mx-auto px-6 py-32 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8"
-        >
+
+      <div ref={contentRef} className="relative z-10 max-w-5xl mx-auto px-6 py-32 text-center transform-style-3d">
+        <div className="mb-8 flex justify-center">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-2xl shadow-indigo-500/50 mb-8 backdrop-blur-sm border border-indigo-400/20">
             <svg className="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-        </motion.div>
+        </div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="text-7xl md:text-8xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-white"
+        <h1
+          ref={titleRef}
+          className="text-7xl md:text-8xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-white will-change-transform"
         >
           checkDK
-        </motion.h1>
+        </h1>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="mb-6"
-        >
+        <div className="mb-6">
           <TextShimmer className="text-2xl md:text-3xl font-semibold">
             Predict. Diagnose. Fix – Before You Waste Time.
           </TextShimmer>
-        </motion.div>
+        </div>
 
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="text-xl text-slate-300 max-w-3xl mx-auto mb-12 leading-relaxed"
-        >
+        <p className="text-xl text-slate-300 max-w-3xl mx-auto mb-12 leading-relaxed">
           AI-powered CLI tool that detects and fixes Docker/Kubernetes issues before execution.
           Save hours of debugging by catching configuration errors before they happen.
-        </motion.p>
+        </p>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="flex flex-wrap items-center justify-center gap-4"
-        >
+        <div className="flex flex-wrap items-center justify-center gap-4">
           <HoverBorderGradient
             as="a"
             href="#installation"
@@ -71,16 +111,14 @@ const Hero = () => {
           >
             Get Started →
           </HoverBorderGradient>
-          
-          <motion.a
+
+          <a
             href="#usage"
-            className="px-8 py-3 rounded-xl border border-slate-700 bg-slate-900/50 backdrop-blur-sm text-slate-100 font-medium hover:border-indigo-400 hover:text-indigo-300 hover:bg-slate-800/50 transition-all duration-300"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            className="group px-8 py-3 rounded-xl border border-slate-700 bg-slate-900/50 backdrop-blur-sm text-slate-100 font-medium hover:border-indigo-400 hover:text-indigo-300 hover:bg-slate-800/50 transition-all duration-300"
           >
-            View Docs
-          </motion.a>
-        </motion.div>
+            <span className="inline-block group-hover:scale-105 transition-transform">View Docs</span>
+          </a>
+        </div>
       </div>
     </section>
   )
