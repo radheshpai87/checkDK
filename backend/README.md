@@ -229,6 +229,9 @@ pip install -r requirements.txt
 
 # Run tests
 pytest tests/
+
+# Test manually
+./demo.sh
 ```
 
 ---

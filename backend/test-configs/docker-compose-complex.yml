@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # Frontend web server
+  frontend:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+      - "80:8080"  # Duplicate port mapping!
+    environment:
+      - API_URL=${MISSING_API_URL}  # This env var doesn't exist
+      - NODE_ENV=production
+    depends_on:
+      - backend
+      - cache
+
+  # Backend API
+  backend:
+    image: node:18
+    ports:
+      - "3000:3000"
+      - "3000:4000"  # Another duplicate!
+    environment:
+      - DATABASE_URL=${DB_URL}
+      - REDIS_URL=redis://cache:6379
+      - SECRET_KEY=${MISSING_SECRET}
+    restart: always
+
+  # Another backend (port conflict!)
+  backend-v2:
+    image: node:20
+    ports:
+      - "3000:3000"  # CONFLICT WITH backend!
+    environment:
+      - PORT=3000
+
+  # Database
+  database:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+      - "5432:5433"  # Duplicate again
+    environment:
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=myapp
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  # Redis cache
+  cache:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+  # Monitoring
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+      - "80:9090"  # CONFLICT with frontend!
+
+  # More conflicts
+  service1:
+    image: alpine:latest
+    ports:
+      - "8080:80"
+
+  service2:
+    image: alpine:latest
+    ports:
+      - "8080:80"  # CONFLICT with service1!
+
+  service3:
+    image: alpine:latest
+    ports:
+      - "8080:80"  # CONFLICT with service1 and service2!
+
+volumes:
+  db_data:

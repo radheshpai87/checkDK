@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Multiple issues in one service
+  problematic-web:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "80:8080"      # Duplicate host port
+      - "443:443"
+      - "8000:8000"
+    environment:
+      - API_KEY=${MISSING_KEY}
+      - SECRET=${ANOTHER_MISSING}
+    depends_on:
+      - nonexistent-service  # Service doesn't exist!
+    
+  # Port conflicts everywhere
+  app1:
+    image: node:18
+    ports:
+      - "3000:3000"
+  
+  app2:
+    image: python:3.11
+    ports:
+      - "3000:5000"    # Host port 3000 conflict!
+  
+  app3:
+    image: ruby:3.2
+    ports:
+      - "3000:4567"    # Another 3000 conflict!
+  
+  # More complex conflicts
+  db-primary:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+      - "5433:5432"    # OK
+  
+  db-replica:
+    image: postgres:15
+    ports:
+      - "5432:5432"    # Conflicts with db-primary!
+  
+  # Multiple duplicate ports in one service
+  messy-service:
+    image: alpine
+    ports:
+      - "9000:80"
+      - "9000:90"      # Duplicate 9000
+      - "9001:100"
+      - "9001:110"     # Duplicate 9001
+      - "9002:120"
+      - "9002:130"     # Duplicate 9002
+  
+  # Conflicts with earlier services
+  late-conflict-1:
+    image: busybox
+    ports:
+      - "80:80"        # Conflicts with problematic-web
+  
+  late-conflict-2:
+    image: busybox
+    ports:
+      - "443:443"      # Conflicts with problematic-web
+  
+  late-conflict-3:
+    image: busybox
+    ports:
+      - "8000:8000"    # Conflicts with problematic-web
+  
+  # System ports (if validator checks these)
+  risky-service:
+    image: alpine
+    ports:
+      - "22:22"        # SSH
+      - "21:21"        # FTP
