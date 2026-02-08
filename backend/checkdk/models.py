@@ -17,11 +17,16 @@ class IssueType(str, Enum):
     PORT_CONFLICT = "port_conflict"
     MISSING_IMAGE = "missing_image"
     RESOURCE_LIMIT = "resource_limit"
+    RESOURCE_LIMITS = "resource_limits"  # Alias for Kubernetes
+    IMAGE_VERSION = "image_version"
     INVALID_YAML = "invalid_yaml"
     MISSING_ENV_VAR = "missing_env_var"
     VOLUME_MOUNT = "volume_mount"
     NETWORK_CONFIG = "network_config"
     SERVICE_DEPENDENCY = "service_dependency"
+    SECURITY_ISSUE = "security_issue"
+    HEALTH_CHECK = "health_check"
+    LABEL_MISMATCH = "label_mismatch"
 
 
 class Issue(BaseModel):
@@ -41,6 +46,9 @@ class Fix(BaseModel):
     steps: List[str]
     code_snippet: Optional[str] = None
     auto_applicable: bool = False
+    # AI-specific fields
+    explanation: Optional[str] = None
+    root_cause: Optional[str] = None
 
 
 class AnalysisResult(BaseModel):

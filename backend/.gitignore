@@ -45,4 +45,5 @@ Thumbs.db
 
 # Config
 .env
+.env.local
 config.local.yaml

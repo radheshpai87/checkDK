@@ -9,10 +9,11 @@ from pydantic import BaseModel, Field
 
 class AIConfig(BaseModel):
     """AI provider configuration."""
-    provider: str = "aws-bedrock"
-    model: str = "claude-3-sonnet"
+    provider: str = "groq"  # groq, gemini, aws-bedrock, or openai
+    model: str = "llama-3.3-70b-versatile"
     api_key: Optional[str] = None
     enabled: bool = True
+    fallback_provider: Optional[str] = "gemini"
 
 
 class CheckDKConfig(BaseModel):
