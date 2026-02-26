@@ -58,10 +58,10 @@ const Navbar = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] sm:w-auto max-w-2xl"
+        className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] sm:w-auto"
       >
-        <div className="px-4 sm:px-6 py-3 rounded-2xl backdrop-blur-xl bg-slate-900/70 border border-slate-700/50 shadow-2xl shadow-indigo-500/10">
-          <div className="flex items-center justify-between gap-4 sm:gap-8">
+        <div className="px-4 sm:px-6 py-3 rounded-2xl backdrop-blur-xl bg-slate-900/70 border border-slate-700/50 shadow-2xl shadow-indigo-500/10 overflow-hidden">
+          <div className="flex items-center justify-between gap-3 sm:gap-4">
             {/* Logo */}
             <motion.a
               href="#"
@@ -79,7 +79,7 @@ const Navbar = () => {
             </motion.a>
 
             {/* Desktop Nav Links */}
-            <div className="hidden md:flex items-center gap-1">
+            <div className="hidden md:flex items-center gap-1 min-w-0 flex-shrink">
               {NAV_ITEMS.map((item) => {
                 const isActive = activeSection === item.href.replace('#', '');
                 return (
@@ -87,9 +87,8 @@ const Navbar = () => {
                     key={item.label}
                     href={item.href}
                     onClick={(e) => { e.preventDefault(); handleNavClick(item.href); }}
-                    className={`relative px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isActive ? 'text-white' : 'text-slate-300 hover:text-white'
-                    }`}
+                    className={`relative px-2.5 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? 'text-white' : 'text-slate-300 hover:text-white'
+                      }`}
                     whileTap={{ scale: 0.95 }}
                   >
                     {isActive && (
@@ -112,7 +111,7 @@ const Navbar = () => {
                 href={GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:text-white hover:border-indigo-500/50 transition-all text-sm font-medium"
+                className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:text-white hover:border-indigo-500/50 transition-all text-sm font-medium flex-shrink-0"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -184,11 +183,10 @@ const Navbar = () => {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.05 }}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${
-                        isActive
-                          ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-                          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                      }`}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${isActive
+                        ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
                     >
                       {isActive && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />}
                       {item.label}

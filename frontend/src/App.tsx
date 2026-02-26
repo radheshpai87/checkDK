@@ -28,6 +28,23 @@ function App() {
 
     lenisRef.current = lenis
 
+    // Intercept anchor clicks so Lenis handles them smoothly
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      const anchor = target.closest('a')
+      if (!anchor) return
+      const href = anchor.getAttribute('href')
+      if (!href || !href.startsWith('#')) return
+      const id = href.slice(1)
+      if (!id) return
+      const el = document.getElementById(id)
+      if (!el) return
+      e.preventDefault()
+      lenis.scrollTo(el, { offset: -100 })
+    }
+
+    document.addEventListener('click', handleAnchorClick)
+
     lenis.on('scroll', ScrollTrigger.update)
 
     // FIX: Store the ticker callback so it can be properly removed
@@ -39,7 +56,7 @@ function App() {
     gsap.ticker.lagSmoothing(0)
 
     return () => {
-      // FIX: Remove the exact same function reference
+      document.removeEventListener('click', handleAnchorClick)
       gsap.ticker.remove(tickerCallback)
       lenis.destroy()
     }
