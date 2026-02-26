@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
+import { Link } from "react-router-dom";
 import { HoverBorderGradient } from "./ui/HoverBorderGradient";
 import { TextShimmer } from "./ui/TextShimmer";
 import { Meteors } from "./ui/Meteors";
@@ -90,12 +91,12 @@ const Hero = () => {
             Get Started →
           </HoverBorderGradient>
 
-          <a
-            href="#playground"
+          <Link
+            to="/demo"
             className="group px-8 py-3 w-full sm:w-auto justify-center rounded-xl border border-slate-700 bg-slate-900/50 backdrop-blur-sm text-slate-100 font-medium hover:border-indigo-400 hover:text-indigo-300 hover:bg-slate-800/50 transition-all duration-300 flex items-center"
           >
             <span className="inline-block group-hover:scale-105 transition-transform">Try Playground ↗</span>
-          </a>
+          </Link>
         </div>
       </div>
     </section>
