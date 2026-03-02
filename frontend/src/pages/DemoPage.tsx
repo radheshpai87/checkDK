@@ -66,7 +66,7 @@ const DemoPage = () => {
                         transition={{ delay: 0.2 }}
                         className="text-slate-400 text-lg max-w-2xl mx-auto mb-8 leading-relaxed"
                     >
-                        Paste any Docker Compose or Kubernetes manifest and get a full analysis
+                        Paste, upload, or drag &amp; drop any Docker Compose or Kubernetes manifest and get a full analysis
                         report — exactly what{' '}
                         <code className="text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded text-sm font-mono">
                             checkdk

@@ -244,18 +244,91 @@ function AnalysisPanel({ report }: { report: AnalysisReport }) {
 
 // ── Main Playground ───────────────────────────────────────────────────────────
 
+const ACCEPTED_EXTENSIONS = ['.yml', '.yaml'];
+const MAX_FILE_SIZE = 1024 * 512; // 512 KB
+
 const Playground = () => {
   const [yaml, setYaml] = useState('');
   const [report, setReport] = useState<AnalysisReport | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'docker-compose' | 'kubernetes' | 'paste'>('paste');
+  const [activeTab, setActiveTab] = useState<'docker-compose' | 'kubernetes' | 'paste' | 'upload'>('paste');
+  const [dragging, setDragging] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCounter = useRef(0);
 
   const handleLoadSample = (type: 'docker-compose' | 'kubernetes') => {
     setYaml(SAMPLE_CONFIGS[type]);
     setReport(null);
     setActiveTab(type);
+    setUploadedFileName(null);
     setTimeout(() => textareaRef.current?.focus(), 50);
+  };
+
+  const processFile = (file: File) => {
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!ACCEPTED_EXTENSIONS.includes(ext)) {
+      alert(`Unsupported file type "${ext}". Please upload a .yml or .yaml file.`);
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      alert(`File is too large (${(file.size / 1024).toFixed(0)} KB). Maximum size is 512 KB.`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      setYaml(content);
+      setReport(null);
+      setActiveTab('upload');
+      setUploadedFileName(file.name);
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFileUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+    // Reset so the same file can be re-uploaded
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(false);
+    dragCounter.current = 0;
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
   };
 
   const handleAnalyze = async () => {
@@ -274,6 +347,7 @@ const Playground = () => {
     setYaml('');
     setReport(null);
     setActiveTab('paste');
+    setUploadedFileName(null);
     textareaRef.current?.focus();
   };
 
@@ -305,7 +379,7 @@ const Playground = () => {
             Try It Right Now
           </h2>
           <p className="text-slate-400 text-lg max-w-2xl mx-auto">
-            Paste your Docker Compose or Kubernetes manifest and get an instant full analysis report — just like running <code className="text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded text-sm">checkdk</code> from your terminal.
+            Paste your Docker Compose or Kubernetes manifest, upload a file, or drag &amp; drop — get an instant full analysis report just like running <code className="text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded text-sm">checkdk</code> from your terminal.
           </p>
         </motion.div>
 
@@ -313,8 +387,17 @@ const Playground = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Left — Editor */}
           <div className="flex flex-col gap-3">
-            {/* Sample tabs */}
-            <div className="flex items-center gap-2">
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".yml,.yaml"
+              onChange={handleFileInputChange}
+              className="hidden"
+            />
+
+            {/* Sample tabs + upload */}
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-slate-500 font-mono">Load sample:</span>
               {(['docker-compose', 'kubernetes'] as const).map(type => (
                 <button
@@ -329,6 +412,23 @@ const Playground = () => {
                   {type === 'docker-compose' ? '🐳 docker-compose' : '☸ kubernetes'}
                 </button>
               ))}
+
+              <div className="w-px h-5 bg-slate-700 mx-0.5" />
+
+              <button
+                onClick={handleFileUpload}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all border flex items-center gap-1.5 ${
+                  activeTab === 'upload'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                    : 'bg-slate-800/50 text-slate-400 border-slate-700 hover:text-slate-200 hover:border-slate-600'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                {uploadedFileName ? uploadedFileName : 'Upload file'}
+              </button>
+
               {yaml && (
                 <button
                   onClick={handleClear}
@@ -339,15 +439,50 @@ const Playground = () => {
               )}
             </div>
 
-            {/* Editor window */}
-            <div className="relative rounded-xl bg-slate-900 border border-slate-700/60 overflow-hidden flex-1 min-h-[420px] flex flex-col">
+            {/* Editor window with drop zone */}
+            <div
+              className={`relative rounded-xl bg-slate-900 border overflow-hidden flex-1 min-h-[420px] flex flex-col transition-colors duration-200 ${
+                dragging
+                  ? 'border-indigo-500/60 bg-indigo-500/5'
+                  : 'border-slate-700/60'
+              }`}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              {/* Drag overlay */}
+              <AnimatePresence>
+                {dragging && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-slate-950/80 backdrop-blur-sm rounded-xl"
+                  >
+                    <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 border-2 border-dashed border-indigo-500/50 flex items-center justify-center">
+                      <svg className="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                    </div>
+                    <p className="text-indigo-300 font-medium text-sm">Drop your .yml / .yaml file here</p>
+                    <p className="text-slate-500 text-xs">Max 512 KB</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               {/* Window chrome */}
               <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-slate-800 bg-slate-950 flex-shrink-0">
                 <span className="w-3 h-3 rounded-full bg-red-500/70" />
                 <span className="w-3 h-3 rounded-full bg-amber-500/70" />
                 <span className="w-3 h-3 rounded-full bg-green-500/70" />
                 <span className="ml-3 text-slate-500 text-xs font-mono">
-                  {activeTab === 'paste' ? 'untitled.yml' : activeTab === 'docker-compose' ? 'docker-compose.yml' : 'k8s-manifest.yaml'}
+                  {activeTab === 'upload' && uploadedFileName
+                    ? uploadedFileName
+                    : activeTab === 'paste'
+                      ? 'untitled.yml'
+                      : activeTab === 'docker-compose'
+                        ? 'docker-compose.yml'
+                        : 'k8s-manifest.yaml'}
                 </span>
                 {yaml && (
                   <span className="ml-auto text-slate-600 text-xs font-mono">{lineCount} lines</span>
@@ -447,7 +582,7 @@ const Playground = () => {
                   </div>
                   <div>
                     <p className="text-slate-500 font-medium">Analysis results will appear here</p>
-                    <p className="text-slate-600 text-sm mt-1">Paste a config and click "Run checkdk Analysis"</p>
+                    <p className="text-slate-600 text-sm mt-1">Paste a config, upload a file, or drag &amp; drop</p>
                   </div>
                 </motion.div>
               )}
