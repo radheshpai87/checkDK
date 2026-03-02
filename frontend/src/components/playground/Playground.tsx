@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
-  Play, RotateCcw, Copy, Check, FileText, Upload, Loader2, ChevronDown,
+  Play, Copy, Check, FileText, Upload, Loader2, ChevronDown,
 } from 'lucide-react';
 import { analyzeWithGroq } from '../../services/groqAnalysis';
 import type { GroqAnalysisResult } from '../../services/groqAnalysis';
@@ -100,7 +100,7 @@ const ACCEPTED = '.yml,.yaml,.json,.tf,.toml';
 // ── Playground ────────────────────────────────────────────────────────────────
 
 const Playground = () => {
-  const [code, setCode] = useState(SAMPLE_CONFIGS['S3 Bucket']);
+  const [code, setCode] = useState<string>(SAMPLE_CONFIGS['S3 Bucket']);
   const [copied, setCopied] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFilename, setUploadedFilename] = useState<string | undefined>(undefined);
