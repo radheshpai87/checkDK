@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
+    "@mistralai/mistralai": "^1.14.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.33.0",
     "groq-sdk": "^0.37.0",

@@ -2,9 +2,9 @@ import React, { useState, useRef, useCallback } from 'react';
 import {
   Play, Copy, Check, FileText, Upload, Loader2, ChevronDown,
 } from 'lucide-react';
-import { analyzeWithGroq } from '../../services/groqAnalysis';
-import type { GroqAnalysisResult } from '../../services/groqAnalysis';
-import { GroqResults } from './GroqResults';
+import { analyze } from '../../services/aiAnalysis';
+import type { AnalysisResult } from '../../services/aiAnalysis';
+import { AnalysisResults } from './AnalysisResults';
 
 // ── Sample configs (deliberately misconfigured for demo) ────────────────────────────────────────────────────────────────────
 
@@ -95,8 +95,6 @@ type SampleKey = keyof typeof SAMPLE_CONFIGS;
 
 const ACCEPTED = '.yml,.yaml,.json,.tf,.toml';
 
-// ── Severity helpers (kept for TS — no longer used directly) ──────────────────
-
 // ── Playground ────────────────────────────────────────────────────────────────
 
 const Playground = () => {
@@ -105,7 +103,7 @@ const Playground = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFilename, setUploadedFilename] = useState<string | undefined>(undefined);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [result, setResult] = useState<GroqAnalysisResult | null>(null);
+  const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showSamples, setShowSamples] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -163,7 +161,7 @@ const Playground = () => {
     setResult(null);
     setError(null);
     try {
-      const data = await analyzeWithGroq(code, uploadedFilename);
+      const data = await analyze(code, uploadedFilename);
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
@@ -429,7 +427,7 @@ const Playground = () => {
 
               {/* Results */}
               {result && !isAnalyzing && (
-                <GroqResults result={result} filename={uploadedFilename} />
+                <AnalysisResults result={result} filename={uploadedFilename} />
               )}
             </div>
           </div>

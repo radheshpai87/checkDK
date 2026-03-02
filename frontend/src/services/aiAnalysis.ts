@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// services/groqAnalysis.ts
+// services/aiAnalysis.ts
 // AI-powered analysis for AWS / Docker / Kubernetes config files.
 // Primary: Mistral  |  Fallback: Groq
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,7 +19,7 @@ const groq = new Groq({
 export type IssueSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 export type AnalysisStatus = 'secure' | 'warning' | 'critical';
 
-export interface GroqIssue {
+export interface AnalysisIssue {
   severity: IssueSeverity;
   title: string;
   description: string;
@@ -27,18 +27,18 @@ export interface GroqIssue {
   recommendation: string;
 }
 
-export interface GroqHighlight {
+export interface AnalysisHighlight {
   type: 'good' | 'bad' | 'neutral';
   text: string;
 }
 
-export interface GroqAnalysisResult {
+export interface AnalysisResult {
   score: number;            // 0–100, higher = more secure
   status: AnalysisStatus;
   summary: string;
-  issues: GroqIssue[];
-  highlights: GroqHighlight[];
-  provider?: 'mistral' | 'groq';   // which provider produced the result
+  issues: AnalysisIssue[];
+  highlights: AnalysisHighlight[];
+  provider?: 'mistral' | 'groq';
 }
 
 // ── System prompt ─────────────────────────────────────────────────────────────
@@ -110,7 +110,7 @@ Return ONLY the JSON object — no markdown, no code fences, no explanation.`;
 async function analyzeWithMistral(
   configContent: string,
   filename?: string
-): Promise<GroqAnalysisResult> {
+): Promise<AnalysisResult> {
   const response = await mistral.chat.complete({
     model: 'mistral-large-latest',
     messages: [
@@ -125,7 +125,7 @@ async function analyzeWithMistral(
   const cleaned = stripFences(raw);
 
   try {
-    const result = JSON.parse(cleaned) as GroqAnalysisResult;
+    const result = JSON.parse(cleaned) as AnalysisResult;
     result.provider = 'mistral';
     return result;
   } catch {
@@ -137,10 +137,10 @@ async function analyzeWithMistral(
 
 // ── Groq (fallback) ───────────────────────────────────────────────────────────
 
-async function analyzeWithGroqFallback(
+async function analyzeWithGroq(
   configContent: string,
   filename?: string
-): Promise<GroqAnalysisResult> {
+): Promise<AnalysisResult> {
   if (!import.meta.env.VITE_GROQ_API_KEY) {
     throw new Error(
       'VITE_GROQ_API_KEY is not set. Add it to your .env file and restart the dev server.'
@@ -161,7 +161,7 @@ async function analyzeWithGroqFallback(
   const cleaned = stripFences(raw);
 
   try {
-    const result = JSON.parse(cleaned) as GroqAnalysisResult;
+    const result = JSON.parse(cleaned) as AnalysisResult;
     result.provider = 'groq';
     return result;
   } catch {
@@ -173,10 +173,10 @@ async function analyzeWithGroqFallback(
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export async function analyzeWithGroq(
+export async function analyze(
   configContent: string,
   filename?: string
-): Promise<GroqAnalysisResult> {
+): Promise<AnalysisResult> {
   if (!import.meta.env.VITE_MISTRAL_API_KEY && !import.meta.env.VITE_GROQ_API_KEY) {
     throw new Error(
       'Neither VITE_MISTRAL_API_KEY nor VITE_GROQ_API_KEY is set. Add at least one to your .env file and restart the dev server.'
@@ -188,10 +188,10 @@ export async function analyzeWithGroq(
     try {
       return await analyzeWithMistral(configContent, filename);
     } catch (mistralErr) {
-      console.warn('[analyzeWithGroq] Mistral failed, falling back to Groq:', mistralErr);
+      console.warn('[analyze] Mistral failed, falling back to Groq:', mistralErr);
     }
   }
 
   // Fall back to Groq
-  return analyzeWithGroqFallback(configContent, filename);
+  return analyzeWithGroq(configContent, filename);
 }

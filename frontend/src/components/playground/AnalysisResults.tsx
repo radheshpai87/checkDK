@@ -9,7 +9,7 @@ import {
   Lightbulb,
   ChevronDown,
 } from 'lucide-react';
-import type { GroqAnalysisResult, GroqIssue, IssueSeverity } from '../../services/groqAnalysis';
+import type { AnalysisResult, AnalysisIssue, IssueSeverity } from '../../services/aiAnalysis';
 
 // ── Configs ────────────────────────────────────────────────────────────────────
 
@@ -91,7 +91,7 @@ const STATUS_CFG = {
 
 // ── IssueCard ──────────────────────────────────────────────────────────────────
 
-function IssueCard({ issue, index }: { issue: GroqIssue; index: number }) {
+function IssueCard({ issue, index }: { issue: AnalysisIssue; index: number }) {
   const [open, setOpen] = useState(index === 0);
   const cfg = SEVERITY_CFG[issue.severity] ?? SEVERITY_CFG.info;
   const { Icon } = cfg;
@@ -136,14 +136,14 @@ function IssueCard({ issue, index }: { issue: GroqIssue; index: number }) {
   );
 }
 
-// ── GroqResults ────────────────────────────────────────────────────────────────
+// ── AnalysisResults ────────────────────────────────────────────────────────────
 
-interface GroqResultsProps {
-  result: GroqAnalysisResult;
+interface AnalysisResultsProps {
+  result: AnalysisResult;
   filename?: string;
 }
 
-export const GroqResults: React.FC<GroqResultsProps> = ({ result, filename }) => {
+export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ result, filename }) => {
   const status = STATUS_CFG[result.status] ?? STATUS_CFG.warning;
   const { Icon: StatusIcon } = status;
 
@@ -159,7 +159,6 @@ export const GroqResults: React.FC<GroqResultsProps> = ({ result, filename }) =>
     low:      result.issues.filter((i) => i.severity === 'low').length,
   };
 
-  // Sort issues by severity priority
   const PRIORITY: Record<IssueSeverity, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
   const sorted = [...result.issues].sort((a, b) => PRIORITY[a.severity] - PRIORITY[b.severity]);
 
