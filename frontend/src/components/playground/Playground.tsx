@@ -1,435 +1,272 @@
-import { useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { analyzeConfig, SAMPLE_CONFIGS, type AnalysisReport, type Issue, type Severity } from "../../lib/yamlValidator";
+import React, { useState, useRef, useCallback } from 'react';
+import {
+  Play, RotateCcw, Copy, Check, FileText, Upload, Loader2, ChevronDown,
+} from 'lucide-react';
+import { analyzeWithGroq } from '../../services/groqAnalysis';
+import type { GroqAnalysisResult } from '../../services/groqAnalysis';
+import { GroqResults } from './GroqResults';
 
-// ── Severity helpers ──────────────────────────────────────────────────────────
+// ── Sample configs (deliberately misconfigured for demo) ────────────────────────────────────────────────────────────────────
 
-const SEVERITY_CONFIG: Record<Severity, { label: string; color: string; bg: string; border: string; badge: string }> = {
-  critical: {
-    label: 'CRITICAL',
-    color: 'text-red-400',
-    bg: 'bg-red-500/10',
-    border: 'border-red-500/30',
-    badge: 'bg-red-500/20 text-red-300 border-red-500/30',
-  },
-  warning: {
-    label: 'WARN',
-    color: 'text-amber-400',
-    bg: 'bg-amber-500/10',
-    border: 'border-amber-500/30',
-    badge: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-  },
-  info: {
-    label: 'INFO',
-    color: 'text-blue-400',
-    bg: 'bg-blue-500/10',
-    border: 'border-blue-500/30',
-    badge: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-  },
-  ok: {
-    label: 'OK',
-    color: 'text-green-400',
-    bg: 'bg-green-500/10',
-    border: 'border-green-500/30',
-    badge: 'bg-green-500/20 text-green-300 border-green-500/30',
-  },
-};
+const SAMPLE_CONFIGS = {
+  'S3 Bucket': `AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  MyS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: my-public-data-bucket
+      AccessControl: PublicRead
+      VersioningConfiguration:
+        Status: Suspended`,
 
-const STEP_STATUS_CONFIG = {
-  ok: { icon: '✓', color: 'text-green-400' },
-  warn: { icon: '⚠', color: 'text-amber-400' },
-  error: { icon: '✗', color: 'text-red-400' },
-  info: { icon: '·', color: 'text-blue-400' },
-};
+  'IAM Role': `AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  AdminRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AdminRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: FullAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: '*'
+                Resource: '*'`,
 
-const STATUS_SUMMARY = {
-  passed: { label: 'All checks passed', color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/30' },
-  warnings: { label: 'Passed with warnings', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30' },
-  failed: { label: 'Critical issues found — execution blocked', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
-  error: { label: 'Analysis error', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
-};
+  'EC2 Security Group': `AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  WebServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Web server security group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0`,
 
-// ── IssueCard ─────────────────────────────────────────────────────────────────
+  'Docker Compose': `version: "3.9"
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    environment:
+      - DB_PASSWORD=supersecret123
+    depends_on:
+      - db
+  db:
+    image: postgres:14
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=\${POSTGRES_PASSWORD}`,
 
-function IssueCard({ issue, index }: { issue: Issue; index: number }) {
-  const [expanded, setExpanded] = useState(false);
-  const cfg = SEVERITY_CONFIG[issue.severity];
+  'Kubernetes': `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    spec:
+      containers:
+        - name: my-app
+          image: my-registry/my-app:latest
+          env:
+            - name: DB_PASSWORD
+              value: "hardcoded-secret"`,
+} as const;
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.06 }}
-      className={`rounded-xl border ${cfg.border} ${cfg.bg} overflow-hidden`}
-    >
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="w-full flex items-start gap-3 p-4 text-left hover:bg-white/5 transition-colors"
-      >
-        <span className={`font-mono text-xs font-bold pt-0.5 flex-shrink-0 px-1.5 py-0.5 rounded border ${cfg.badge}`}>
-          {cfg.label}
-        </span>
-        <div className="flex-1 min-w-0">
-          <p className="text-slate-100 font-medium text-sm leading-snug">{issue.message}</p>
-          {issue.line && (
-            <p className="text-slate-500 text-xs mt-0.5 font-mono">Line {issue.line}</p>
-          )}
-        </div>
-        <motion.span
-          animate={{ rotate: expanded ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="text-slate-500 flex-shrink-0 mt-0.5"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </motion.span>
-      </button>
+type SampleKey = keyof typeof SAMPLE_CONFIGS;
 
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="border-t border-white/5"
-          >
-            <div className="p-4 space-y-4">
-              <div>
-                <p className="text-xs text-slate-400 font-mono uppercase tracking-wider mb-1.5">What's wrong</p>
-                <p className="text-slate-300 text-sm leading-relaxed">{issue.detail}</p>
-              </div>
+const ACCEPTED = '.yml,.yaml,.json,.tf,.toml';
 
-              {issue.fix && (
-                <div>
-                  <p className="text-xs text-slate-400 font-mono uppercase tracking-wider mb-1.5">How to fix it</p>
-                  <p className="text-slate-300 text-sm leading-relaxed">{issue.fix}</p>
-                </div>
-              )}
+// ── Severity helpers (kept for TS — no longer used directly) ──────────────────
 
-              {issue.fixCode && (
-                <div>
-                  <p className="text-xs text-slate-400 font-mono uppercase tracking-wider mb-1.5">Code fix</p>
-                  <div className="relative group/code">
-                    <pre className="bg-slate-950 rounded-lg p-4 text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed border border-slate-800">
-                      {issue.fixCode}
-                    </pre>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigator.clipboard.writeText(issue.fixCode!);
-                      }}
-                      className="absolute top-2 right-2 opacity-0 group-hover/code:opacity-100 p-1.5 rounded bg-slate-800 hover:bg-slate-700 transition-all"
-                      title="Copy fix"
-                    >
-                      <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-}
-
-// ── AnalysisPanel ─────────────────────────────────────────────────────────────
-
-function AnalysisPanel({ report }: { report: AnalysisReport }) {
-  const summary = STATUS_SUMMARY[report.status];
-  const criticals = report.issues.filter(i => i.severity === 'critical');
-  const warnings = report.issues.filter(i => i.severity === 'warning');
-  const infos = report.issues.filter(i => i.severity === 'info');
-
-  return (
-    <div className="h-full flex flex-col gap-4 overflow-y-auto">
-      {/* Terminal-style header */}
-      <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden flex-shrink-0">
-        {/* Dots */}
-        <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-slate-800 bg-slate-950">
-          <span className="w-3 h-3 rounded-full bg-red-500/70" />
-          <span className="w-3 h-3 rounded-full bg-amber-500/70" />
-          <span className="w-3 h-3 rounded-full bg-green-500/70" />
-          <span className="ml-auto text-slate-500 text-xs font-mono">checkdk analysis</span>
-        </div>
-
-        {/* Steps log */}
-        <div className="p-4 space-y-1.5 font-mono text-xs">
-          {report.steps.map((step, i) => {
-            const cfg = STEP_STATUS_CONFIG[step.status];
-            return (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -4 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.08 }}
-                className="flex items-center gap-3"
-              >
-                <span className={`font-bold w-4 ${cfg.color}`}>{cfg.icon}</span>
-                <span className="text-slate-400 w-40 flex-shrink-0">{step.label}</span>
-                <span className="text-slate-500 truncate">{step.detail}</span>
-              </motion.div>
-            );
-          })}
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: report.steps.length * 0.08 + 0.1 }}
-            className="pt-2 border-t border-slate-800 flex items-center justify-between"
-          >
-            <span className={`font-bold ${summary.color}`}>
-              {report.status === 'passed' ? '✓' : report.status === 'failed' ? '✗' : '⚠'}{' '}
-              {summary.label}
-            </span>
-            <span className="text-slate-600">{report.executionTimeMs}ms</span>
-          </motion.div>
-        </div>
-      </div>
-
-      {/* Summary badges */}
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="flex flex-wrap gap-2"
-      >
-        {[
-          { count: criticals.length, label: 'Critical', cfg: SEVERITY_CONFIG.critical },
-          { count: warnings.length, label: 'Warnings', cfg: SEVERITY_CONFIG.warning },
-          { count: infos.length, label: 'Info', cfg: SEVERITY_CONFIG.info },
-        ].map(({ count, label, cfg }) => (
-          <span
-            key={label}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-semibold ${cfg.badge}`}
-          >
-            {count} {label}
-          </span>
-        ))}
-        <span className="px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-mono font-semibold text-slate-400 bg-slate-800/50 ml-auto">
-          {report.configType === 'docker-compose' ? '🐳 Docker Compose' : report.configType === 'kubernetes' ? '☸ Kubernetes' : '? Unknown'}
-        </span>
-      </motion.div>
-
-      {/* Issue list */}
-      {report.issues.length > 0 ? (
-        <div className="space-y-3 flex-1">
-          {[...criticals, ...warnings, ...infos].map((issue, i) => (
-            <IssueCard key={i} issue={issue} index={i} />
-          ))}
-        </div>
-      ) : (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.97 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex-1 flex flex-col items-center justify-center gap-3 text-center py-8"
-        >
-          <div className="w-14 h-14 rounded-2xl bg-green-500/20 border border-green-500/30 flex items-center justify-center">
-            <svg className="w-7 h-7 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <p className="text-green-400 font-semibold">All checks passed!</p>
-          <p className="text-slate-500 text-sm">Your configuration looks great. No issues detected.</p>
-        </motion.div>
-      )}
-    </div>
-  );
-}
-
-// ── Main Playground ───────────────────────────────────────────────────────────
-
-const ACCEPTED_EXTENSIONS = ['.yml', '.yaml'];
-const MAX_FILE_SIZE = 1024 * 512; // 512 KB
+// ── Playground ────────────────────────────────────────────────────────────────
 
 const Playground = () => {
-  const [yaml, setYaml] = useState('');
-  const [report, setReport] = useState<AnalysisReport | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'docker-compose' | 'kubernetes' | 'paste' | 'upload'>('paste');
-  const [dragging, setDragging] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [code, setCode] = useState(SAMPLE_CONFIGS['S3 Bucket']);
+  const [copied, setCopied] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadedFilename, setUploadedFilename] = useState<string | undefined>(undefined);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [result, setResult] = useState<GroqAnalysisResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [showSamples, setShowSamples] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
 
-  const handleLoadSample = (type: 'docker-compose' | 'kubernetes') => {
-    setYaml(SAMPLE_CONFIGS[type]);
-    setReport(null);
-    setActiveTab(type);
-    setUploadedFileName(null);
-    setTimeout(() => textareaRef.current?.focus(), 50);
-  };
-
-  const processFile = (file: File) => {
-    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-    if (!ACCEPTED_EXTENSIONS.includes(ext)) {
-      alert(`Unsupported file type "${ext}". Please upload a .yml or .yaml file.`);
+  // ── File handling ───────────────────────────────────────────────────────────
+  const loadFile = useCallback((file: File) => {
+    if (!/\.(ya?ml|json|tf|toml)$/i.test(file.name)) {
+      alert('Please upload a .yml, .yaml, .json, .tf, or .toml file.');
       return;
     }
-    if (file.size > MAX_FILE_SIZE) {
-      alert(`File is too large (${(file.size / 1024).toFixed(0)} KB). Maximum size is 512 KB.`);
+    if (file.size > 512 * 1024) {
+      alert('File is too large. Maximum size is 512 KB.');
       return;
     }
     const reader = new FileReader();
     reader.onload = (e) => {
-      const content = e.target?.result as string;
-      setYaml(content);
-      setReport(null);
-      setActiveTab('upload');
-      setUploadedFileName(file.name);
-      setTimeout(() => textareaRef.current?.focus(), 50);
+      setCode(e.target?.result as string);
+      setUploadedFilename(file.name);
+      setResult(null);
+      setError(null);
     };
     reader.readAsText(file);
-  };
+  }, []);
 
-  const handleFileUpload = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) processFile(file);
-    // Reset so the same file can be re-uploaded
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (file) loadFile(file);
+    e.target.value = '';
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     dragCounter.current++;
-    if (e.dataTransfer.types.includes('Files')) {
-      setDragging(true);
-    }
+    if (e.dataTransfer.types.includes('Files')) setIsDragging(true);
   };
-
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     dragCounter.current--;
-    if (dragCounter.current === 0) {
-      setDragging(false);
-    }
+    if (dragCounter.current === 0) setIsDragging(false);
   };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-    setDragging(false);
+    setIsDragging(false);
     dragCounter.current = 0;
     const file = e.dataTransfer.files?.[0];
-    if (file) processFile(file);
+    if (file) loadFile(file);
   };
 
+  // ── Analysis ────────────────────────────────────────────────────────────────
   const handleAnalyze = async () => {
-    if (!yaml.trim() || loading) return;
-    setLoading(true);
-    setReport(null);
+    if (!code.trim() || isAnalyzing) return;
+    setIsAnalyzing(true);
+    setResult(null);
+    setError(null);
     try {
-      const result = await analyzeConfig(yaml);
-      setReport(result);
+      const data = await analyzeWithGroq(code, uploadedFilename);
+      setResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
     } finally {
-      setLoading(false);
+      setIsAnalyzing(false);
     }
+  };
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleClear = () => {
-    setYaml('');
-    setReport(null);
-    setActiveTab('paste');
-    setUploadedFileName(null);
-    textareaRef.current?.focus();
+    setCode('');
+    setUploadedFilename(undefined);
+    setResult(null);
+    setError(null);
   };
 
-  const lineCount = yaml.split('\n').length;
+  const loadSample = (key: SampleKey) => {
+    setCode(SAMPLE_CONFIGS[key]);
+    setUploadedFilename(undefined);
+    setResult(null);
+    setError(null);
+    setShowSamples(false);
+  };
 
+  const lineCount = code.split('\n').length;
+
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <section id="playground" className="py-24 px-4 sm:px-6 bg-slate-950 relative overflow-hidden">
       {/* Background glow */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-indigo-500/5 rounded-full blur-[120px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-violet-500/5 rounded-full blur-[120px]" />
       </div>
 
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-14"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-sm font-medium mb-6">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-            </span>
-            Live Playground
-          </div>
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-5 bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-white">
-            Try It Right Now
+        <div className="text-center mb-14">
+          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight mb-5 bg-clip-text text-transparent bg-gradient-to-r from-white via-violet-200 to-white">
+            Interactive Playground
           </h2>
           <p className="text-slate-400 text-lg max-w-2xl mx-auto">
-            Paste your Docker Compose or Kubernetes manifest, upload a file, or drag &amp; drop — get an instant full analysis report just like running <code className="text-indigo-300 bg-indigo-500/10 px-1.5 py-0.5 rounded text-sm">checkdk</code> from your terminal.
+            Paste your config, load a sample, or{' '}
+            <span className="text-violet-300">upload a file</span> — CheckDK
+            analyses it instantly for security issues, misconfigurations, and
+            best-practice violations.
           </p>
-        </motion.div>
+        </div>
 
         {/* Two-panel layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Left — Editor */}
+          {/* ── Left: Editor ──────────────────────────────────────────────── */}
           <div className="flex flex-col gap-3">
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".yml,.yaml"
-              onChange={handleFileInputChange}
-              className="hidden"
-            />
-
-            {/* Sample tabs + upload */}
+            {/* Toolbar */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-slate-500 font-mono">Load sample:</span>
-              {(['docker-compose', 'kubernetes'] as const).map(type => (
+              {/* Samples dropdown */}
+              <div className="relative">
                 <button
-                  key={type}
-                  onClick={() => handleLoadSample(type)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all border ${
-                    activeTab === type
-                      ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
-                      : 'bg-slate-800/50 text-slate-400 border-slate-700 hover:text-slate-200 hover:border-slate-600'
-                  }`}
+                  onClick={() => setShowSamples((v) => !v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-all"
                 >
-                  {type === 'docker-compose' ? '🐳 docker-compose' : '☸ kubernetes'}
+                  Load sample
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showSamples ? 'rotate-180' : ''}`} />
                 </button>
-              ))}
+                {showSamples && (
+                  <div className="absolute left-0 mt-1 w-52 rounded-xl border border-slate-700/60 bg-slate-800 shadow-xl z-20">
+                    {(Object.keys(SAMPLE_CONFIGS) as SampleKey[]).map((key) => (
+                      <button
+                        key={key}
+                        onClick={() => loadSample(key)}
+                        className="w-full text-left text-xs px-4 py-2.5 text-slate-300 hover:bg-slate-700/60 first:rounded-t-xl last:rounded-b-xl transition-colors"
+                      >
+                        {key}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-              <div className="w-px h-5 bg-slate-700 mx-0.5" />
+              <div className="w-px h-4 bg-slate-700" />
 
+              {/* Upload button */}
               <button
-                onClick={handleFileUpload}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all border flex items-center gap-1.5 ${
-                  activeTab === 'upload'
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                    : 'bg-slate-800/50 text-slate-400 border-slate-700 hover:text-slate-200 hover:border-slate-600'
-                }`}
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-violet-600/15 border border-violet-500/30 text-violet-300 hover:bg-violet-600/25 transition-all"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                {uploadedFileName ? uploadedFileName : 'Upload file'}
+                <Upload className="w-3.5 h-3.5" />
+                {uploadedFilename ? uploadedFilename : 'Upload file'}
               </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED}
+                className="hidden"
+                onChange={handleFileChange}
+              />
 
-              {yaml && (
+              {code && (
                 <button
                   onClick={handleClear}
                   className="ml-auto px-2.5 py-1.5 rounded-lg text-xs font-mono text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-all border border-transparent hover:border-slate-700"
@@ -439,12 +276,10 @@ const Playground = () => {
               )}
             </div>
 
-            {/* Editor window with drop zone */}
+            {/* Editor window */}
             <div
-              className={`relative rounded-xl bg-slate-900 border overflow-hidden flex-1 min-h-[420px] flex flex-col transition-colors duration-200 ${
-                dragging
-                  ? 'border-indigo-500/60 bg-indigo-500/5'
-                  : 'border-slate-700/60'
+              className={`relative rounded-xl bg-slate-900 overflow-hidden flex-1 min-h-[420px] flex flex-col transition-colors duration-200 border ${
+                isDragging ? 'border-violet-500/60 bg-violet-900/10' : 'border-slate-700/60'
               }`}
               onDragEnter={handleDragEnter}
               onDragLeave={handleDragLeave}
@@ -452,46 +287,44 @@ const Playground = () => {
               onDrop={handleDrop}
             >
               {/* Drag overlay */}
-              <AnimatePresence>
-                {dragging && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-slate-950/80 backdrop-blur-sm rounded-xl"
-                  >
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 border-2 border-dashed border-indigo-500/50 flex items-center justify-center">
-                      <svg className="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                    </div>
-                    <p className="text-indigo-300 font-medium text-sm">Drop your .yml / .yaml file here</p>
-                    <p className="text-slate-500 text-xs">Max 512 KB</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {isDragging && (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-slate-950/80 backdrop-blur-sm rounded-xl pointer-events-none">
+                  <div className="w-16 h-16 rounded-2xl bg-violet-500/20 border-2 border-dashed border-violet-400/60 flex items-center justify-center">
+                    <Upload className="w-7 h-7 text-violet-300 animate-bounce" />
+                  </div>
+                  <p className="text-violet-200 font-semibold text-sm">Drop your config file here</p>
+                  <p className="text-slate-400 text-xs">.yml · .yaml · .json · .tf · .toml</p>
+                </div>
+              )}
+
               {/* Window chrome */}
               <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-slate-800 bg-slate-950 flex-shrink-0">
                 <span className="w-3 h-3 rounded-full bg-red-500/70" />
                 <span className="w-3 h-3 rounded-full bg-amber-500/70" />
                 <span className="w-3 h-3 rounded-full bg-green-500/70" />
-                <span className="ml-3 text-slate-500 text-xs font-mono">
-                  {activeTab === 'upload' && uploadedFileName
-                    ? uploadedFileName
-                    : activeTab === 'paste'
-                      ? 'untitled.yml'
-                      : activeTab === 'docker-compose'
-                        ? 'docker-compose.yml'
-                        : 'k8s-manifest.yaml'}
+                <FileText className="w-3.5 h-3.5 text-slate-500 ml-2" />
+                <span className="ml-1 text-slate-500 text-xs font-mono">
+                  {uploadedFilename ?? 'config.yml'}
                 </span>
-                {yaml && (
-                  <span className="ml-auto text-slate-600 text-xs font-mono">{lineCount} lines</span>
+                {code && (
+                  <>
+                    <span className="ml-auto text-slate-600 text-xs font-mono">{lineCount} lines</span>
+                    <button
+                      onClick={handleCopy}
+                      className="ml-3 p-1 rounded hover:bg-slate-800 text-slate-500 hover:text-slate-300 transition-colors"
+                      title="Copy"
+                    >
+                      {copied
+                        ? <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        : <Copy className="w-3.5 h-3.5" />
+                      }
+                    </button>
+                  </>
                 )}
               </div>
 
-              {/* Editor area with line numbers */}
+              {/* Editor with line numbers */}
               <div className="flex flex-1 overflow-hidden">
-                {/* Line numbers */}
                 <div className="flex-shrink-0 w-10 bg-slate-950/50 border-r border-slate-800 pt-4 pb-4 px-2 overflow-hidden select-none">
                   {Array.from({ length: Math.max(lineCount, 20) }, (_, i) => (
                     <div key={i} className="text-slate-700 text-xs font-mono leading-6 text-right">
@@ -499,29 +332,23 @@ const Playground = () => {
                     </div>
                   ))}
                 </div>
-
-                {/* Textarea */}
                 <textarea
-                  ref={textareaRef}
-                  value={yaml}
-                  onChange={e => { setYaml(e.target.value); setReport(null); }}
-                  onKeyDown={e => {
-                    // Tab key inserts 2 spaces instead of changing focus
+                  value={code}
+                  onChange={(e) => { setCode(e.target.value); setResult(null); setError(null); }}
+                  onKeyDown={(e) => {
                     if (e.key === 'Tab') {
                       e.preventDefault();
-                      const start = e.currentTarget.selectionStart;
+                      const s = e.currentTarget.selectionStart;
                       const end = e.currentTarget.selectionEnd;
-                      const newVal = yaml.substring(0, start) + '  ' + yaml.substring(end);
-                      setYaml(newVal);
+                      const next = code.substring(0, s) + '  ' + code.substring(end);
+                      setCode(next);
                       setTimeout(() => {
-                        if (textareaRef.current) {
-                          textareaRef.current.selectionStart = start + 2;
-                          textareaRef.current.selectionEnd = start + 2;
-                        }
+                        e.currentTarget.selectionStart = s + 2;
+                        e.currentTarget.selectionEnd = s + 2;
                       }, 0);
                     }
                   }}
-                  placeholder={`# Paste your docker-compose.yml or Kubernetes manifest here\n# or load a sample above ↑\n\nversion: "3.9"\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - "80:80"`}
+                  placeholder={`# Paste your config here, load a sample, or drag & drop a file\n\nversion: "3.9"\nservices:\n  web:\n    image: nginx:latest`}
                   className="flex-1 bg-transparent text-slate-200 font-mono text-sm leading-6 resize-none outline-none p-4 placeholder:text-slate-700"
                   spellCheck={false}
                   autoComplete="off"
@@ -530,136 +357,85 @@ const Playground = () => {
               </div>
             </div>
 
-            {/* Analyze button */}
+            {/* Analyse button */}
             <button
               onClick={handleAnalyze}
-              disabled={!yaml.trim() || loading}
+              disabled={!code.trim() || isAnalyzing}
               className={`relative w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 overflow-hidden group ${
-                yaml.trim() && !loading
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40'
+                code.trim() && !isAnalyzing
+                  ? 'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40'
                   : 'bg-slate-800 text-slate-500 cursor-not-allowed'
               }`}
             >
-              {loading ? (
+              {isAnalyzing ? (
                 <span className="flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Analyzing configuration...
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Analysing…
                 </span>
               ) : (
                 <span className="flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  Run checkdk Analysis
+                  <Play className="w-4 h-4" />
+                  Analyse
                 </span>
               )}
-
-              {/* Shimmer on hover */}
-              {yaml.trim() && !loading && (
+              {code.trim() && !isAnalyzing && (
                 <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
               )}
             </button>
           </div>
 
-          {/* Right — Results */}
-          <div className="min-h-[540px] lg:min-h-0">
-            <AnimatePresence mode="wait">
-              {!report && !loading && (
-                <motion.div
-                  key="empty"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="h-full min-h-[420px] flex flex-col items-center justify-center gap-4 rounded-xl border border-slate-800 border-dashed bg-slate-900/30 text-center p-8"
-                >
-                  <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+          {/* ── Right: Results ────────────────────────────────────────────── */}
+          <div className="min-h-[540px] rounded-xl border border-slate-700/60 bg-slate-900/30 flex flex-col overflow-hidden">
+            {/* Window chrome */}
+            <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-slate-800 bg-slate-950 flex-shrink-0">
+              <span className="w-3 h-3 rounded-full bg-red-500/70" />
+              <span className="w-3 h-3 rounded-full bg-amber-500/70" />
+              <span className="w-3 h-3 rounded-full bg-green-500/70" />
+            </div>
+
+            <div className="flex-1 p-5 overflow-y-auto">
+              {/* Idle */}
+              {!isAnalyzing && !result && !error && (
+                <div className="h-full flex flex-col items-center justify-center text-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+                    <Play className="w-7 h-7 text-violet-400" />
                   </div>
                   <div>
-                    <p className="text-slate-500 font-medium">Analysis results will appear here</p>
-                    <p className="text-slate-600 text-sm mt-1">Paste a config, upload a file, or drag &amp; drop</p>
+                    <p className="text-slate-400 font-medium">Analysis results will appear here</p>
+                    <p className="text-slate-600 text-sm mt-1">
+                      Load a sample, paste a config, or upload a file — then click Analyse
+                    </p>
                   </div>
-                </motion.div>
+                </div>
               )}
 
-              {loading && (
-                <motion.div
-                  key="loading"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="h-full min-h-[420px] flex flex-col items-center justify-center gap-5 rounded-xl border border-slate-800 bg-slate-900/30"
-                >
-                  {/* Animated terminal lines */}
-                  <div className="w-72 space-y-2.5 font-mono text-xs">
-                    {[
-                      { text: 'Parsing YAML structure...', delay: 0 },
-                      { text: 'Detecting config type...', delay: 0.2 },
-                      { text: 'Running validators...', delay: 0.5 },
-                      { text: 'Scanning for secrets...', delay: 0.8 },
-                      { text: 'Generating AI suggestions...', delay: 1.1 },
-                    ].map((item, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: item.delay }}
-                        className="flex items-center gap-2 text-slate-500"
-                      >
-                        <motion.span
-                          animate={{ opacity: [1, 0.3, 1] }}
-                          transition={{ repeat: Infinity, duration: 1.2, delay: item.delay }}
-                          className="text-indigo-400"
-                        >
-                          ›
-                        </motion.span>
-                        {item.text}
-                      </motion.div>
-                    ))}
+              {/* Loading */}
+              {isAnalyzing && (
+                <div className="h-full flex flex-col items-center justify-center gap-5">
+                  <Loader2 className="w-10 h-10 text-violet-400 animate-spin" />
+                  <div className="text-center">
+                    <p className="text-slate-300 font-medium">Analysing your configuration…</p>
                   </div>
-                </motion.div>
+                </div>
               )}
 
-              {report && !loading && (
-                <motion.div
-                  key="results"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="h-full"
-                >
-                  <AnalysisPanel report={report} />
-                </motion.div>
+              {/* Error */}
+              {error && !isAnalyzing && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5">
+                  <p className="text-red-300 font-semibold text-sm mb-1">Analysis failed</p>
+                  <p className="text-red-400/80 text-sm">{error}</p>
+                </div>
               )}
-            </AnimatePresence>
+
+              {/* Results */}
+              {result && !isAnalyzing && (
+                <GroqResults result={result} filename={uploadedFilename} />
+              )}
+            </div>
           </div>
         </div>
 
-        {/* "Connect to real API" callout */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-8 flex items-center gap-3 p-4 rounded-xl bg-slate-900/50 border border-slate-800 text-sm"
-        >
-          <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
-            <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <p className="text-slate-400">
-            This playground runs client-side validation. When the backend API is ready, swap{' '}
-            <code className="text-indigo-300 bg-indigo-500/10 px-1 py-0.5 rounded text-xs">analyzeConfig()</code>
-            {' '}in{' '}
-            <code className="text-indigo-300 bg-indigo-500/10 px-1 py-0.5 rounded text-xs">lib/yamlValidator.ts</code>
-            {' '}to hit <code className="text-indigo-300 bg-indigo-500/10 px-1 py-0.5 rounded text-xs">POST /api/analyze</code> for full AI-powered analysis.
-          </p>
-        </motion.div>
+        {/* Footer callout */}
       </div>
     </section>
   );
