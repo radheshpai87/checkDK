@@ -77,7 +77,7 @@ const Features = () => {
         scrollTrigger: {
           trigger: headerRef.current,
           start: "top 80%", // When top of element hits 80% from top of viewport
-          toggleActions: "play none none reverse"
+          toggleActions: "play none none none"
         }
       }
     );
@@ -95,7 +95,7 @@ const Features = () => {
         scrollTrigger: {
           trigger: containerRef.current, // Use section as trigger for the grid
           start: "top 70%",
-          toggleActions: "play none none reverse"
+          toggleActions: "play none none none"
         }
       }
     );
