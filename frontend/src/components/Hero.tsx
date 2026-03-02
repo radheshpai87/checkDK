@@ -56,11 +56,7 @@ const Hero = () => {
 
       <div ref={contentRef} className="relative z-10 max-w-5xl mx-auto px-6 py-32 text-center transform-style-3d">
         <div className="mb-8 flex justify-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-2xl shadow-indigo-500/50 mb-8 backdrop-blur-sm border border-indigo-400/20">
-            <svg className="w-9 h-9 sm:w-12 sm:h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
+          <img src="/favicon.svg" className="w-16 h-16 sm:w-20 sm:h-20 mb-8" alt="checkDK logo" />
         </div>
 
         {/* FIX: Responsive font sizes - was 7xl/8xl (clips on mobile), now scales from 4xl up */}

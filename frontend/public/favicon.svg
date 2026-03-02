@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="hex-g" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+    <linearGradient id="text-g" x1="7" y1="13" x2="25" y2="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="100%" stop-color="#c7d2fe"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Hexagon (flat-top, Kubernetes-inspired) -->
+  <path d="M16 3 L27.5 9.5 L27.5 22.5 L16 29 L4.5 22.5 L4.5 9.5 Z"
+        stroke="url(#hex-g)" stroke-width="1.4" stroke-linejoin="round"
+        fill="none" opacity="0.9"/>
+
+  <!-- Terminal prompt: ">" caret -->
+  <path d="M9 12.5 L15 16 L9 19.5"
+        stroke="url(#text-g)" stroke-width="2.2"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Underscore cursor -->
+  <line x1="17" y1="20" x2="23" y2="20"
+        stroke="url(#text-g)" stroke-width="2"
+        stroke-linecap="round" opacity="0.85"/>
+</svg>
