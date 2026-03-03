@@ -91,9 +91,10 @@ def load_lstm(X_test):
     import torch
     import torch.nn as nn
 
+    device   = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     lstm_dir = os.path.join(BASE_DIR, "models", "lstm_model")
     ckpt     = torch.load(os.path.join(lstm_dir, "lstm_model.pt"),
-                          map_location="cpu", weights_only=True)
+                          map_location=device, weights_only=True)
     scaler   = joblib.load(os.path.join(lstm_dir, "scaler.pkl"))
     hp       = ckpt["hyperparams"]
 
@@ -114,10 +115,11 @@ def load_lstm(X_test):
 
     model = PodFailureLSTM(**hp)
     model.load_state_dict(ckpt["state_dict"])
+    model.to(device)
     model.eval()
 
     Xs = scaler.transform(X_test).astype(np.float32)
-    tensor = torch.tensor(Xs).unsqueeze(-1)   # (N, seq, 1)
+    tensor = torch.tensor(Xs).unsqueeze(-1).to(device)   # (N, seq, 1)
     with torch.no_grad():
         logits = model(tensor)
         proba  = torch.sigmoid(logits).numpy()

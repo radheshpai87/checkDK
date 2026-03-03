@@ -62,7 +62,8 @@ class LSTMPredictor:
             raise FileNotFoundError(
                 f"Model not found at {MODEL_PATH}. Run train.py first."
             )
-        checkpoint = torch.load(MODEL_PATH, map_location="cpu", weights_only=True)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        checkpoint = torch.load(MODEL_PATH, map_location=self.device, weights_only=True)
         hp = checkpoint["hyperparams"]
         self.model = PodFailureLSTM(
             input_size=hp["input_size"],
@@ -71,8 +72,10 @@ class LSTMPredictor:
             dropout=hp["dropout"],
         )
         self.model.load_state_dict(checkpoint["state_dict"])
+        self.model.to(self.device)
         self.model.eval()
         self.scaler = joblib.load(SCALER_PATH)
+        print(f"[LSTMPredictor] Using device: {self.device}")
 
     def predict(self, metrics: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -91,7 +94,7 @@ class LSTMPredictor:
         row = np.array([[metrics[f] for f in FEATURES]], dtype=np.float32)
         row_scaled = self.scaler.transform(row)
         # Shape: (1, seq_len, 1)
-        tensor = torch.tensor(row_scaled, dtype=torch.float32).unsqueeze(-1)
+        tensor = torch.tensor(row_scaled, dtype=torch.float32).unsqueeze(-1).to(self.device)
         with torch.no_grad():
             logit = self.model(tensor)
             proba = float(torch.sigmoid(logit).item())
