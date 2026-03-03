@@ -95,6 +95,7 @@ function IssueCard({ issue, index }: { issue: AnalysisIssue; index: number }) {
   const [open, setOpen] = useState(index === 0);
   const cfg = SEVERITY_CFG[issue.severity] ?? SEVERITY_CFG.info;
   const { Icon } = cfg;
+  const fix = issue.recommendation || issue.suggestion;
 
   return (
     <div className={`rounded-xl border ${cfg.border} ${cfg.bg} overflow-hidden`}>
@@ -107,6 +108,11 @@ function IssueCard({ issue, index }: { issue: AnalysisIssue; index: number }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold text-slate-100">{issue.title}</span>
             <span className={`text-xs px-2 py-0.5 rounded-full ${cfg.badge}`}>{cfg.label}</span>
+            {issue.category && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-700/50 text-slate-400 border border-slate-600/40 font-mono">
+                {issue.category}
+              </span>
+            )}
             {issue.line != null && (
               <span className="text-xs text-slate-500 font-mono">Line {issue.line}</span>
             )}
@@ -123,13 +129,15 @@ function IssueCard({ issue, index }: { issue: AnalysisIssue; index: number }) {
       {open && (
         <div className="px-4 pb-4 space-y-3 border-t border-white/5 pt-3">
           <p className="text-sm text-slate-300 leading-relaxed">{issue.description}</p>
-          <div className="flex items-start gap-2 bg-slate-900/50 rounded-lg p-3">
-            <Lightbulb className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-slate-300 leading-relaxed">
-              <span className="text-amber-400 font-semibold">Fix: </span>
-              {issue.recommendation}
-            </p>
-          </div>
+          {fix && (
+            <div className="flex items-start gap-2 bg-slate-900/50 rounded-lg p-3">
+              <Lightbulb className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-slate-300 leading-relaxed">
+                <span className="text-amber-400 font-semibold">Fix: </span>
+                {fix}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -144,7 +152,7 @@ interface AnalysisResultsProps {
 }
 
 export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ result, filename }) => {
-  const status = STATUS_CFG[result.status] ?? STATUS_CFG.warning;
+  const status = STATUS_CFG[result.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.warning;
   const { Icon: StatusIcon } = status;
 
   // SVG ring
@@ -229,7 +237,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ result, filena
       </div>
 
       {/* ── Highlights ──────────────────────────────────────────────────────── */}
-      {result.highlights?.length > 0 && (
+      {Array.isArray(result.highlights) && result.highlights.length > 0 && (
         <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-4">
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp className="w-4 h-4 text-violet-400" />
@@ -244,7 +252,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ result, filena
                     ? <XCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
                     : <Info className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
                 }
-                <span className="text-sm text-slate-300">{h.text}</span>
+                <span className="text-sm text-slate-300">{h.text || h.title || h.description}</span>
               </li>
             ))}
           </ul>
@@ -269,6 +277,9 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ result, filena
       <p className="text-center text-xs text-slate-600 pt-1">
         Powered by{' '}
         <span className="text-violet-500 font-medium">CheckDK</span>
+        {result.provider && (
+          <span className="text-slate-600"> — {result.provider}</span>
+        )}
       </p>
     </div>
   );

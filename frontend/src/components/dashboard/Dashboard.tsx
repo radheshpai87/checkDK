@@ -8,10 +8,10 @@ import {
 
 // ── Severity styling ──────────────────────────────────────────────────────────
 
-const SEVERITY_STYLE: Record<IssueSeverity, { badge: string; dot: string }> = {
-  critical: { badge: 'bg-red-500/15 text-red-300 border-red-500/30', dot: 'bg-red-400' },
-  warning: { badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30', dot: 'bg-amber-400' },
-  info: { badge: 'bg-blue-500/15 text-blue-300 border-blue-500/30', dot: 'bg-blue-400' },
+const SEVERITY_STYLE: Record<IssueSeverity, { badge: string; dot: string; border: string }> = {
+  critical: { badge: 'bg-red-500/15 text-red-300 border-red-500/30', dot: 'bg-red-400', border: 'border-red-500/30' },
+  warning: { badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30', dot: 'bg-amber-400', border: 'border-amber-500/30' },
+  info: { badge: 'bg-blue-500/15 text-blue-300 border-blue-500/30', dot: 'bg-blue-400', border: 'border-blue-500/30' },
 };
 
 const STATUS_STYLE: Record<string, { badge: string; label: string; icon: string }> = {
@@ -217,8 +217,8 @@ function ReportDetail({ report, onClose }: { report: AnalysisReport; onClose: ()
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.06 }}
-                className={`rounded-xl border p-4 space-y-3 ${sc.badge.replace('text-', 'border-').replace('bg-', '').split(' ')[0]} bg-slate-950/50`}
-                style={{ borderColor: undefined }}
+                className={`rounded-xl border p-4 space-y-3 ${sc.border} bg-slate-950/50`}
+                style={{}}
               >
                 <div className="flex items-start gap-3">
                   <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${sc.dot}`} />

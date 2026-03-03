@@ -336,13 +336,14 @@ const Playground = () => {
                   onKeyDown={(e) => {
                     if (e.key === 'Tab') {
                       e.preventDefault();
-                      const s = e.currentTarget.selectionStart;
-                      const end = e.currentTarget.selectionEnd;
+                      const el = e.currentTarget;
+                      const s = el.selectionStart;
+                      const end = el.selectionEnd;
                       const next = code.substring(0, s) + '  ' + code.substring(end);
                       setCode(next);
                       setTimeout(() => {
-                        e.currentTarget.selectionStart = s + 2;
-                        e.currentTarget.selectionEnd = s + 2;
+                        el.selectionStart = s + 2;
+                        el.selectionEnd = s + 2;
                       }, 0);
                     }
                   }}
