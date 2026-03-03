@@ -154,12 +154,12 @@ class KubernetesValidator:
             namespace = service.get('metadata', {}).get('namespace', 'default')
             spec = service.get('spec', {})
             
-            # Check for NodePort conflicts
+            # Check for NodePort conflicts (NodePorts are cluster-wide)
             if spec.get('type') == 'NodePort':
                 for port_config in spec.get('ports', []):
                     node_port = port_config.get('nodePort')
                     if node_port:
-                        key = f"{namespace}:{node_port}"
+                        key = str(node_port)
                         if key in nodeport_map:
                             issues.append(Issue(
                                 type=IssueType.PORT_CONFLICT,
@@ -231,10 +231,10 @@ class KubernetesValidator:
             
             # Check for missing resource limits
             for container in containers:
-                resources = container.get('resources', {})
-                if not resources.get('limits'):
+                container_resources = container.get('resources', {})
+                if not container_resources.get('limits'):
                     issues.append(Issue(
-                        type=IssueType.RESOURCE_LIMITS,
+                        type=IssueType.RESOURCE_LIMIT,
                         severity=Severity.WARNING,
                         message=f"Deployment '{name}' container '{container.get('name')}' has no resource limits",
                         service_name=name,
@@ -251,7 +251,7 @@ class KubernetesValidator:
     def generate_fix(issue: Issue) -> Fix:
         """Generate fix for Kubernetes issues."""
         if issue.type == IssueType.PORT_CONFLICT:
-            port = issue.details.get('port')
+            port = issue.details.get('port') or 30000
             namespace = issue.details.get('namespace', 'default')
             
             # Suggest new port
@@ -292,7 +292,7 @@ class KubernetesValidator:
                 auto_applicable=False
             )
         
-        elif issue.type == IssueType.RESOURCE_LIMITS:
+        elif issue.type == IssueType.RESOURCE_LIMIT:
             container = issue.details.get('container')
             
             return Fix(
@@ -303,13 +303,70 @@ class KubernetesValidator:
                     f"  - name: {container}",
                     "    resources:",
                     "      limits:",
-                    "        memory: \"256Mi\"",
-                    "        cpu: \"500m\"",
+                    '        memory: "256Mi"',
+                    '        cpu: "500m"',
                     "      requests:",
-                    "        memory: \"128Mi\"",
-                    "        cpu: \"250m\""
+                    '        memory: "128Mi"',
+                    '        cpu: "250m"'
                 ],
                 auto_applicable=False
+            )
+        
+        elif issue.type == IssueType.SECURITY_ISSUE:
+            container = issue.details.get('container', 'unknown')
+            return Fix(
+                description=f"Harden security context for {container}",
+                steps=[
+                    "Add a restrictive securityContext:",
+                    "  containers:",
+                    f"  - name: {container}",
+                    "    securityContext:",
+                    "      privileged: false",
+                    "      runAsNonRoot: true",
+                    "      readOnlyRootFilesystem: true",
+                    "      allowPrivilegeEscalation: false",
+                ],
+                auto_applicable=False,
+            )
+        
+        elif issue.type == IssueType.HEALTH_CHECK:
+            container = issue.details.get('container', 'unknown')
+            return Fix(
+                description=f"Add health probes for {container}",
+                steps=[
+                    "Add liveness and readiness probes:",
+                    "  containers:",
+                    f"  - name: {container}",
+                    "    livenessProbe:",
+                    "      httpGet:",
+                    "        path: /healthz",
+                    "        port: 8080",
+                    "      initialDelaySeconds: 15",
+                    "      periodSeconds: 10",
+                    "    readinessProbe:",
+                    "      httpGet:",
+                    "        path: /ready",
+                    "        port: 8080",
+                    "      initialDelaySeconds: 5",
+                    "      periodSeconds: 5",
+                ],
+                auto_applicable=False,
+            )
+        
+        elif issue.type == IssueType.LABEL_MISMATCH:
+            selector = issue.details.get('selector', {})
+            return Fix(
+                description="Fix label selector / template mismatch",
+                steps=[
+                    "Ensure spec.selector.matchLabels matches spec.template.metadata.labels:",
+                    "  selector:",
+                    "    matchLabels:",
+                ] + [f"      {k}: {v}" for k, v in selector.items()] + [
+                    "  template:",
+                    "    metadata:",
+                    "      labels:",
+                ] + [f"        {k}: {v}" for k, v in selector.items()],
+                auto_applicable=False,
             )
         
         return Fix(

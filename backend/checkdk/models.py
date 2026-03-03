@@ -17,7 +17,6 @@ class IssueType(str, Enum):
     PORT_CONFLICT = "port_conflict"
     MISSING_IMAGE = "missing_image"
     RESOURCE_LIMIT = "resource_limit"
-    RESOURCE_LIMITS = "resource_limits"  # Alias for Kubernetes
     IMAGE_VERSION = "image_version"
     INVALID_YAML = "invalid_yaml"
     MISSING_ENV_VAR = "missing_env_var"
@@ -76,11 +75,42 @@ class DockerComposeConfig(BaseModel):
     raw_config: Dict[str, Any] = Field(default_factory=dict)
 
 
-class CommandContext(BaseModel):
-    """Context for a command execution."""
-    original_command: str
-    parsed_command: List[str]
-    command_type: str  # 'docker', 'docker-compose', 'kubectl'
-    config_files: List[str] = Field(default_factory=list)
-    flags: Dict[str, Any] = Field(default_factory=dict)
-    dry_run: bool = False
+# --------------- Playground (LLM audit) models ---------------
+
+class IssueSeverity(str, Enum):
+    """Severity levels for playground analysis issues."""
+    CRITICAL = "critical"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+    WARNING = "warning"
+    INFO = "info"
+
+
+class PlaygroundIssue(BaseModel):
+    """A single issue returned by playground analysis (LLM or rule-based)."""
+    title: str = ""
+    severity: IssueSeverity = IssueSeverity.INFO
+    description: str = ""
+    recommendation: Optional[str] = None
+    suggestion: Optional[str] = None  # backward compat alias
+    line: Optional[int] = None
+    category: Optional[str] = None    # dedup key (e.g. "port_conflict", "security")
+
+
+class PlaygroundHighlight(BaseModel):
+    """A positive aspect found during playground analysis."""
+    type: Optional[str] = None        # "good" | "bad" | "neutral"
+    text: Optional[str] = None
+    title: Optional[str] = None       # backward compat
+    description: Optional[str] = None  # backward compat
+
+
+class PlaygroundResult(BaseModel):
+    """Full result from the /analyze/playground endpoint."""
+    score: int = Field(ge=0, le=100)
+    status: str  # "secure" | "warning" | "critical"
+    summary: str
+    issues: List[PlaygroundIssue] = Field(default_factory=list)
+    highlights: List[PlaygroundHighlight] = Field(default_factory=list)
+    provider: Optional[str] = None    # "mistral", "groq", "mistral+rules", "rule-engine"

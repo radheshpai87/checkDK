@@ -38,6 +38,7 @@ def display_analysis_result(result: dict) -> None:
     warnings = [i for i in issues if i.get("severity") == "warning"]
     info     = [i for i in issues if i.get("severity") == "info"]
 
+    # Build a lookup: map each issue index → its fix (fixes align 1:1 with issues)
     if critical:
         console.print("\n[bold red]✗ Critical Issues:[/]")
         for idx, issue in enumerate(critical, 1):
@@ -45,7 +46,12 @@ def display_analysis_result(result: dict) -> None:
             if issue.get("service_name"):
                 console.print(f"   [dim]Service: {issue['service_name']}[/]")
 
-            fix = fixes[idx - 1] if idx <= len(fixes) else None
+            # Find the position of this issue in the original list
+            try:
+                issue_idx = issues.index(issue)
+            except ValueError:
+                issue_idx = -1
+            fix = fixes[issue_idx] if 0 <= issue_idx < len(fixes) else None
             if fix:
                 is_ai = fix.get("explanation") or fix.get("root_cause")
                 if is_ai:

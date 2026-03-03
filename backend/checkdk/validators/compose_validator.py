@@ -52,7 +52,7 @@ class DockerComposeValidator:
         services = config.get('services', {})
         
         # Pattern to match ${VAR_NAME} or $VAR_NAME
-        env_var_pattern = re.compile(r'\$\{([^}]+)\}|\$([A-Z_][A-Z0-9_]*)')
+        env_var_pattern = re.compile(r'\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)')
         
         for service_name, service_config in services.items():
             if not isinstance(service_config, dict):
@@ -64,7 +64,7 @@ class DockerComposeValidator:
             if isinstance(environment, list):
                 env_entries = environment
             elif isinstance(environment, dict):
-                env_entries = [f"{k}={v}" if v else k for k, v in environment.items()]
+                env_entries = [f"{k}={v}" if v is not None else k for k, v in environment.items()]
             else:
                 continue
             

@@ -1,11 +1,13 @@
 """Prediction route – pod failure risk via Random Forest + LLM."""
 
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # ── Request / Response schemas ────────────────────────────────────────────────
@@ -117,6 +119,6 @@ async def predict_endpoint(request: PredictRequest) -> PredictResponse:
                             recommendations=ai_result.get("recommendations", []),
                         )
         except Exception:
-            pass  # Assessment is optional; skip silently
+            logger.warning("LLM health assessment failed – skipping", exc_info=True)
 
     return PredictResponse(prediction=ml_prediction, assessment=assessment)

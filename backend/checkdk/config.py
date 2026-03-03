@@ -9,11 +9,11 @@ from pydantic import BaseModel, Field
 
 class AIConfig(BaseModel):
     """AI provider configuration."""
-    provider: str = "groq"  # groq, gemini, aws-bedrock, or openai
-    model: str = "llama-3.3-70b-versatile"
+    provider: str = "mistral"  # mistral, groq, aws-bedrock, or openai
+    model: str = "mistral-large-latest"
     api_key: Optional[str] = None
     enabled: bool = True
-    fallback_provider: Optional[str] = "gemini"
+    fallback_provider: Optional[str] = "groq"
 
 
 class CheckDKConfig(BaseModel):
@@ -31,7 +31,7 @@ class CheckDKConfig(BaseModel):
         
         if config_path.exists():
             with open(config_path, 'r') as f:
-                data = yaml.safe_load(f)
+                data = yaml.safe_load(f) or {}
                 return cls(**data)
         
         return cls()

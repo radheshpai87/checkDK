@@ -24,7 +24,11 @@ def load_env():
                 key, value = line.split('=', 1)
                 key = key.strip()
                 value = value.strip()
-                
+
+                # Strip surrounding quotes
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+                    value = value[1:-1]
+
                 # Only set if not already in environment
                 if key and not os.getenv(key):
                     os.environ[key] = value

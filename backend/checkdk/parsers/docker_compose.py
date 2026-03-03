@@ -1,6 +1,7 @@
 """Docker Compose configuration parser."""
 
 import os
+import re
 from pathlib import Path
 from typing import Dict, Any, Optional
 import yaml
@@ -89,13 +90,13 @@ class DockerComposeParser:
         elif isinstance(config, list):
             return [self._resolve_env_vars(item) for item in config]
         elif isinstance(config, str):
-            # Simple ${VAR} resolution
-            if config.startswith('${') and config.endswith('}'):
-                var_name = config[2:-1]
-                default_value = None
-                if ':-' in var_name:
-                    var_name, default_value = var_name.split(':-', 1)
-                
+            # Resolve all ${VAR} and ${VAR:-default} occurrences (inline too)
+            def _replace(m: re.Match) -> str:
+                expr = m.group(1)
+                if ':-' in expr:
+                    var_name, default_value = expr.split(':-', 1)
+                else:
+                    var_name, default_value = expr, None
                 value = os.getenv(var_name, default_value)
                 if value is None:
                     self.issues.append(Issue(
@@ -104,7 +105,10 @@ class DockerComposeParser:
                         message=f"Environment variable not set: {var_name}",
                         details={"variable": var_name}
                     ))
-                return value or config
+                    return m.group(0)  # keep original placeholder
+                return value
+
+            return re.sub(r'\$\{([^}]+)\}', _replace, config)
         return config
     
     def _validate_structure(self):
