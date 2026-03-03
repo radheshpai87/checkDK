@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "checkdk-cli"
+version = "0.1.0"
+description = "checkDK CLI – talks to the checkDK API to detect and fix Docker/Kubernetes issues"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "checkDK Team"}
+]
+keywords = ["docker", "kubernetes", "devops", "cli"]
+
+dependencies = [
+    "click>=8.1.0",
+    "rich>=13.0.0",
+    "requests>=2.31.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+checkdk = "checkdkcli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["checkdkcli*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310']

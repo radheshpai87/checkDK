@@ -25,6 +25,63 @@ class AIProvider(ABC):
         """Check if the provider is available and configured."""
         pass
 
+    @abstractmethod
+    def analyze_pod_health(self, prediction: dict) -> dict:
+        """
+        Analyse a Random Forest prediction result and return a natural-language
+        risk assessment with actionable recommendations.
+
+        Args:
+            prediction: dict with keys:
+                label         – "healthy" | "failure"
+                confidence    – float [0, 1] probability of failure
+                risk_level    – "low" | "medium" | "high" | "critical"
+                metrics       – dict of raw pod metric values
+                service_name  – optional str
+                platform      – optional str ("docker" | "kubernetes")
+
+        Returns:
+            {
+                "assessment": str,       # 1-2 sentence summary
+                "root_cause": str,       # likely contributing factor
+                "recommendations": list  # 2-3 actionable steps
+            }
+        """
+        pass
+
+    @staticmethod
+    def _build_pod_health_prompt(prediction: dict) -> str:
+        """Shared prompt builder for pod health analysis."""
+        metrics      = prediction.get("metrics", {})
+        label        = prediction.get("label", "unknown")
+        confidence   = round(prediction.get("confidence", 0) * 100, 1)
+        risk         = prediction.get("risk_level", "unknown")
+        service      = prediction.get("service_name") or "unknown"
+        platform     = prediction.get("platform") or "Docker/Kubernetes"
+
+        metrics_str = "\n".join(
+            f"  - {k.replace('_', ' ').title()}: {v}"
+            for k, v in metrics.items()
+        )
+
+        return f"""A machine learning model (Random Forest) has analysed the runtime metrics
+of a {platform} pod/container and produced the following result:
+
+**Service**: {service}
+**Prediction**: {label.upper()}
+**Failure Probability**: {confidence}%
+**Risk Level**: {risk}
+
+**Runtime Metrics**:
+{metrics_str}
+
+Based on these metrics and the ML model's prediction, provide:
+1. **Assessment**: A clear 1-2 sentence summary of the pod's health status.
+2. **Root Cause**: The most likely contributing factor to this risk level.
+3. **Recommendations**: 2-3 specific, actionable steps an engineer should take right now.
+
+Be concise and practical. Focus on the highest-impact metrics."""
+
 
 class GroqProvider(AIProvider):
     """Groq AI provider (fast, free)."""
@@ -65,11 +122,39 @@ class GroqProvider(AIProvider):
             return {"error": "Groq package not installed. Run: pip install groq"}
         except Exception as e:
             return {"error": f"Groq API error: {str(e)}"}
+
+    def analyze_pod_health(self, prediction: dict) -> dict:
+        """Analyse ML prediction result using Groq LLM."""
+        if not self.is_available():
+            return {"error": "Groq API key not configured"}
+        try:
+            from groq import Groq
+            client   = Groq(api_key=self.api_key)
+            prompt   = self._build_pod_health_prompt(prediction)
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": (
+                        "You are a DevOps SRE expert specialising in Docker and Kubernetes "
+                        "reliability. Provide concise, actionable pod health assessments."
+                    )},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.3,
+                max_tokens=400,
+            )
+            return self._parse_pod_health_response(
+                response.choices[0].message.content
+            )
+        except ImportError:
+            return {"error": "Groq package not installed. Run: pip install groq"}
+        except Exception as e:
+            return {"error": f"Groq API error: {str(e)}"}
     
     def _build_prompt(self, error_message: str, config_snippet: str, context: dict) -> str:
         """Build the prompt for the AI."""
         service = context.get('service_name', 'unknown')
-        
+
         prompt = f"""Analyze this Docker Compose configuration error:
 
 **Error**: {error_message}
@@ -85,9 +170,51 @@ Provide:
 3. **Fix**: Exact steps to resolve (2-3 actionable steps)
 
 Keep it concise and practical."""
-        
+
         return prompt
-    
+
+    def _parse_pod_health_response(self, response: str) -> dict:
+        """Parse LLM pod health response into structured format."""
+        lines = response.strip().split('\n')
+        result = {"assessment": "", "root_cause": "", "recommendations": []}
+        current_section = None
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            lower = line.lower()
+            if "assessment" in lower and ":" in line:
+                current_section = "assessment"
+                parts = line.split(':', 1)
+                if len(parts) > 1 and parts[1].strip():
+                    result["assessment"] = parts[1].strip()
+            elif "root cause" in lower and ":" in line:
+                current_section = "root_cause"
+                parts = line.split(':', 1)
+                if len(parts) > 1 and parts[1].strip():
+                    result["root_cause"] = parts[1].strip()
+            elif "recommendation" in lower and ":" in line:
+                current_section = "recommendations"
+            elif current_section == "recommendations" and (
+                line.startswith('-') or line.startswith('•') or
+                line.startswith('*') or (line and line[0].isdigit())
+            ):
+                clean = line.lstrip('-•*0123456789. ').strip()
+                if clean:
+                    result["recommendations"].append(clean)
+            elif current_section in ("assessment", "root_cause") and not any(
+                x in lower for x in ("assessment", "root cause", "recommendation")
+            ):
+                if current_section == "assessment" and not result["assessment"]:
+                    result["assessment"] = line
+                elif current_section == "root_cause" and not result["root_cause"]:
+                    result["root_cause"] = line
+
+        if not result["assessment"]:
+            result["assessment"] = response[:250]
+        return result
+
     def _parse_response(self, response: str) -> dict:
         """Parse AI response into structured format."""
         lines = response.strip().split('\n')
@@ -170,7 +297,65 @@ class GeminiProvider(AIProvider):
             return {"error": "Google AI package not installed. Run: pip install google-generativeai"}
         except Exception as e:
             return {"error": f"Gemini API error: {str(e)}"}
-    
+
+    def analyze_pod_health(self, prediction: dict) -> dict:
+        """Analyse ML prediction result using Gemini LLM."""
+        if not self.is_available():
+            return {"error": "Gemini API key not configured"}
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=self.api_key)
+            model    = genai.GenerativeModel(self.model)
+            prompt   = self._build_pod_health_prompt(prediction)
+            response = model.generate_content(prompt)
+            return self._parse_pod_health_response(response.text)
+        except ImportError:
+            return {"error": "Google AI package not installed. Run: pip install google-generativeai"}
+        except Exception as e:
+            return {"error": f"Gemini API error: {str(e)}"}
+
+    def _parse_pod_health_response(self, response: str) -> dict:
+        """Parse LLM pod health response into structured format."""
+        lines = response.strip().split('\n')
+        result = {"assessment": "", "root_cause": "", "recommendations": []}
+        current_section = None
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            lower = line.lower()
+            if "assessment" in lower and ":" in line:
+                current_section = "assessment"
+                parts = line.split(':', 1)
+                if len(parts) > 1 and parts[1].strip():
+                    result["assessment"] = parts[1].strip()
+            elif "root cause" in lower and ":" in line:
+                current_section = "root_cause"
+                parts = line.split(':', 1)
+                if len(parts) > 1 and parts[1].strip():
+                    result["root_cause"] = parts[1].strip()
+            elif "recommendation" in lower and ":" in line:
+                current_section = "recommendations"
+            elif current_section == "recommendations" and (
+                line.startswith('-') or line.startswith('•') or
+                line.startswith('*') or (line and line[0].isdigit())
+            ):
+                clean = line.lstrip('-•*0123456789. ').strip()
+                if clean:
+                    result["recommendations"].append(clean)
+            elif current_section in ("assessment", "root_cause") and not any(
+                x in lower for x in ("assessment", "root cause", "recommendation")
+            ):
+                if current_section == "assessment" and not result["assessment"]:
+                    result["assessment"] = line
+                elif current_section == "root_cause" and not result["root_cause"]:
+                    result["root_cause"] = line
+
+        if not result["assessment"]:
+            result["assessment"] = response[:250]
+        return result
+
     def _build_prompt(self, error_message: str, config_snippet: str, context: dict) -> str:
         """Build the prompt for Gemini."""
         service = context.get('service_name', 'unknown')

@@ -1,0 +1,14 @@
+# Virtual environment
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# Env files
+.env
+.env.local
