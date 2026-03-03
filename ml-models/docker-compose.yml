@@ -1,0 +1,76 @@
+name: pod-failure-detection
+
+# ============================================================
+# Services
+# ============================================================
+# train  – runs train_all.py to train + save all models
+# api    – starts the FastAPI inference server on port 8000
+#
+# Quick start:
+#   1. Train all models:    docker compose run --rm train
+#   2. Start the API:       docker compose up api
+#   3. Open Swagger UI:     http://localhost:8000/docs
+# ============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # Training service
+  # ----------------------------------------------------------
+  train:
+    build:
+      context: .
+      target: train
+      args:
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cu121
+    image: pod-failure-train:latest
+    volumes:
+      # Mount model directories so artifacts are persisted on the
+      # host after training completes
+      - ./models/random_forest:/app/models/random_forest
+      - ./models/xgboost_model:/app/models/xgboost_model
+      - ./models/lstm_model:/app/models/lstm_model
+      # Mount dataset (read-only)
+      - ./datasets:/app/datasets:ro
+      # Comparison charts output
+      - ./reports:/app/reports
+    environment:
+      - PYTHONUNBUFFERED=1
+    # GPU – requires nvidia-container-toolkit on the host.
+    # Remove the deploy block if you don't have a GPU.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # One-shot service – exits after training
+    restart: "no"
+
+  # ----------------------------------------------------------
+  # Inference API service
+  # ----------------------------------------------------------
+  api:
+    build:
+      context: .
+      target: api
+      args:
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cu121
+    image: pod-failure-api:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      # Serve the trained model artifacts from the host
+      - ./models/random_forest:/app/models/random_forest:ro
+      - ./models/xgboost_model:/app/models/xgboost_model:ro
+      - ./models/lstm_model:/app/models/lstm_model:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped

@@ -1,0 +1,21 @@
+# Core ML
+scikit-learn>=1.4.0
+xgboost>=2.0.0
+joblib>=1.3.0
+
+# Deep learning (LSTM)
+# torch is installed separately in Dockerfile with the correct CUDA/CPU wheel
+torch>=2.2.0
+
+# Data
+pandas>=2.1.0
+numpy>=1.26.0
+
+# Visualisation
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# API
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
