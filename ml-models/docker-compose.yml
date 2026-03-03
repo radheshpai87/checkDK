@@ -22,9 +22,7 @@ services:
       context: .
       target: train
       args:
-        # Change to https://download.pytorch.org/whl/cu121 (or cu118) to
-        # build a CUDA-enabled image for GPU training.
-        TORCH_INDEX_URL: https://download.pytorch.org/whl/cpu
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cu121
     image: pod-failure-train:latest
     volumes:
       # Mount model directories so artifacts are persisted on the
@@ -58,7 +56,7 @@ services:
       context: .
       target: api
       args:
-        TORCH_INDEX_URL: https://download.pytorch.org/whl/cpu
+        TORCH_INDEX_URL: https://download.pytorch.org/whl/cu121
     image: pod-failure-api:latest
     ports:
       - "8000:8000"
