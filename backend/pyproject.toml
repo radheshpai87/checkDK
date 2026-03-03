@@ -51,9 +51,17 @@ ai = [
 k8s = [
     "kubernetes>=28.0.0",
 ]
-
-[project.scripts]
-checkdk = "checkdk.cli:main"
+ml = [
+    "scikit-learn>=1.4.0",
+    "joblib>=1.3.0",
+    "numpy>=1.26.0",
+    "pandas>=2.1.0",
+]
+api = [
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.29.0",
+    "python-multipart>=0.0.9",
+]
 
 [project.urls]
 Homepage = "https://github.com/yourusername/checkdk"
