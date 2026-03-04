@@ -53,8 +53,10 @@ function getApiBase(): string {
     return '/api';
   }
 
-  // 4. Production fallback (direct)
-  return 'http://localhost:8000';
+  // 4. Production fallback — use the nginx /api proxy path.
+  //    Never return a Docker-internal hostname (backend:8000); the browser
+  //    can't resolve it — only nginx can.
+  return '/api';
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────

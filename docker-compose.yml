@@ -27,7 +27,10 @@ services:
     ports:
       - "3000:80"
     environment:
-      - CHECKDK_API_URL=http://backend:8000
+      # /api is the nginx proxy path — the browser calls /api/* and nginx
+      # forwards it to http://backend:8000/*. Never expose the Docker-internal
+      # hostname (backend:8000) to the browser — it won't resolve.
+      - CHECKDK_API_URL=/api
     depends_on:
       backend:
         condition: service_healthy
