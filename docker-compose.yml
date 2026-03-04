@@ -9,7 +9,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env                    # GROQ_API_KEY, CHECKDK_AI_ENABLED, etc.
+      - .env                    # MISTRAL_API_KEY, GROQ_API_KEY, CORS_ORIGINS, etc.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
@@ -26,6 +26,11 @@ services:
     image: checkdk-frontend:latest
     ports:
       - "3000:80"
+    environment:
+      # /api is the nginx proxy path — the browser calls /api/* and nginx
+      # forwards it to http://backend:8000/*. Never expose the Docker-internal
+      # hostname (backend:8000) to the browser — it won't resolve.
+      - CHECKDK_API_URL=/api
     depends_on:
       backend:
         condition: service_healthy

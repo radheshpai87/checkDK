@@ -38,6 +38,11 @@ def display_analysis_result(result: dict) -> None:
     warnings = [i for i in issues if i.get("severity") == "warning"]
     info     = [i for i in issues if i.get("severity") == "info"]
 
+    # Build a map from Python object identity → original index in `issues`.
+    # This is safe even when two issues have identical field values (which would
+    # cause list.index() to always return the first match).
+    issue_pos: dict[int, int] = {id(i): n for n, i in enumerate(issues)}
+
     if critical:
         console.print("\n[bold red]✗ Critical Issues:[/]")
         for idx, issue in enumerate(critical, 1):
@@ -45,7 +50,8 @@ def display_analysis_result(result: dict) -> None:
             if issue.get("service_name"):
                 console.print(f"   [dim]Service: {issue['service_name']}[/]")
 
-            fix = fixes[idx - 1] if idx <= len(fixes) else None
+            issue_idx = issue_pos.get(id(issue), -1)
+            fix = fixes[issue_idx] if 0 <= issue_idx < len(fixes) else None
             if fix:
                 is_ai = fix.get("explanation") or fix.get("root_cause")
                 if is_ai:

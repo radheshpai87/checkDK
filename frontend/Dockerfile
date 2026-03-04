@@ -20,6 +20,11 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built assets from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Runtime env injection entrypoint
+COPY env.sh /docker-entrypoint.d/40-env-config.sh
+RUN chmod +x /docker-entrypoint.d/40-env-config.sh
+
 EXPOSE 80
 
+ENTRYPOINT ["/docker-entrypoint.d/40-env-config.sh"]
 CMD ["nginx", "-g", "daemon off;"]

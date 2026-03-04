@@ -36,8 +36,9 @@ def _load_dotenv() -> None:
 
 @click.group(invoke_without_command=True)
 @click.version_option(version=__version__, prog_name="checkDK")
+@click.option("--debug", is_flag=True, hidden=True, help="Show full tracebacks")
 @click.pass_context
-def cli(ctx: click.Context) -> None:
+def cli(ctx: click.Context, debug: bool = False) -> None:
     """checkDK – AI-powered Docker/Kubernetes issue detector and fixer.
 
     Delegates all analysis and prediction to the checkDK backend API.
@@ -51,6 +52,8 @@ def cli(ctx: click.Context) -> None:
         checkdk predict --cpu 93 --memory 91
     """
     _load_dotenv()
+    ctx.ensure_object(dict)
+    ctx.obj["debug"] = debug
     if ctx.invoked_subcommand is None:
         console.print(
             f"\n[bold cyan]checkDK[/] v{__version__}\n"
@@ -77,7 +80,7 @@ def main() -> None:
         sys.exit(130)
     except Exception as exc:
         console.print(f"\n[bold red]Error:[/] {exc}")
-        if "--debug" in sys.argv:
+        if "--debug" in sys.argv or getattr(getattr(cli, 'ctx', None), 'obj', {}).get('debug'):
             raise
         sys.exit(1)
 

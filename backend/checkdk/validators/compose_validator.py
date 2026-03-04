@@ -1,5 +1,4 @@
 """Docker Compose configuration validator."""
-import os
 import re
 from typing import List, Dict, Any
 from ..models import Issue, IssueType, Severity, Fix
@@ -52,7 +51,7 @@ class DockerComposeValidator:
         services = config.get('services', {})
         
         # Pattern to match ${VAR_NAME} or $VAR_NAME
-        env_var_pattern = re.compile(r'\$\{([^}]+)\}|\$([A-Z_][A-Z0-9_]*)')
+        env_var_pattern = re.compile(r'\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)')
         
         for service_name, service_config in services.items():
             if not isinstance(service_config, dict):
@@ -64,7 +63,7 @@ class DockerComposeValidator:
             if isinstance(environment, list):
                 env_entries = environment
             elif isinstance(environment, dict):
-                env_entries = [f"{k}={v}" if v else k for k, v in environment.items()]
+                env_entries = [f"{k}={v}" if v is not None else k for k, v in environment.items()]
             else:
                 continue
             
@@ -76,17 +75,30 @@ class DockerComposeValidator:
                 matches = env_var_pattern.findall(entry)
                 for match in matches:
                     var_name = match[0] or match[1]
-                    
-                    # Check if the variable exists in the environment
-                    if not os.getenv(var_name):
+
+                    # Only flag bare references without a shell default
+                    # (e.g. ${VAR} but not ${VAR:-fallback}).
+                    # We deliberately do NOT check os.getenv() here: the
+                    # validator runs inside the API container, which is a
+                    # different environment from where the user will deploy.
+                    # Checking the server's env would produce false positives
+                    # for every variable that is correctly set in the user's
+                    # deployment env but happens to be absent in this container.
+                    raw_ref = match[0]  # the part inside ${...}
+                    has_default = (":-" in raw_ref or ":=" in raw_ref or ":?" in raw_ref or ":+" in raw_ref)
+                    if not has_default:
                         issues.append(Issue(
                             type=IssueType.MISSING_ENV_VAR,
-                            severity=Severity.WARNING,
-                            message=f"Service '{service_name}' references undefined environment variable '${{{var_name}}}'",
+                            severity=Severity.INFO,
+                            message=(
+                                f"Service '{service_name}' references '${{{var_name}}}' "
+                                f"with no inline default — ensure it is set in your "
+                                f"deployment environment or .env file"
+                            ),
                             service_name=service_name,
                             details={
                                 'variable': var_name,
-                                'entry': entry
+                                'entry': entry,
                             }
                         ))
         

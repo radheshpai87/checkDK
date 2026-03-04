@@ -66,7 +66,7 @@ const Navbar = () => {
     setMobileOpen(false);
 
     // Cross-route: e.g. clicking "Features" from /demo → navigate to /#features
-    if (href.startsWith('/') && !href.startsWith('/#') === false) {
+    if (href.includes('#') && href.startsWith('/')) {
       // /#section navigation
       const [path, hash] = href.split('#');
       navigate(path || '/');

@@ -41,7 +41,7 @@ def _find_dataset() -> str:
 
     # 2. Monorepo path (backend is sibling to ml-models/)
     monorepo = os.path.join(
-        os.path.dirname(__file__), "..", "..", "..", "..",
+        os.path.dirname(__file__), "..", "..", "..",
         "ml-models", "datasets", "pod_failure_dataset.csv"
     )
     monorepo = os.path.normpath(monorepo)

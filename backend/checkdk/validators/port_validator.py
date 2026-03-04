@@ -2,7 +2,7 @@
 
 import socket
 import psutil
-from typing import List, Dict, Set
+from typing import Any, Dict, List, Optional, Set
 from ..models import Issue, IssueType, Severity, DockerComposeConfig, Fix
 from .base import BaseValidator
 
@@ -65,15 +65,18 @@ class PortValidator(BaseValidator):
         
         return self.issues
     
-    def _extract_host_port(self, port_mapping) -> int | None:
+    def _extract_host_port(self, port_mapping) -> Optional[int]:
         """Extract the host port from various port mapping formats."""
         if isinstance(port_mapping, int):
             return port_mapping
         
         if isinstance(port_mapping, str):
-            # Format: "8080:80" or "8080"
+            # Formats: "8080:80", "8080", "127.0.0.1:8080:80"
             parts = port_mapping.split(':')
             try:
+                if len(parts) == 3:
+                    # ip:hostPort:containerPort
+                    return int(parts[1])
                 return int(parts[0])
             except (ValueError, IndexError):
                 return None
@@ -99,7 +102,7 @@ class PortValidator(BaseValidator):
         except Exception:
             return False
     
-    def _get_process_using_port(self, port: int) -> Dict[str, any] | None:
+    def _get_process_using_port(self, port: int) -> Optional[Dict[str, Any]]:
         """Get information about the process using a specific port."""
         try:
             for conn in psutil.net_connections(kind='inet'):
@@ -130,6 +133,7 @@ class PortValidator(BaseValidator):
             if process_info.get('name'):
                 steps.append(f"  sudo kill {process_info['pid']}  # Stop {process_info['name']}")
         
+        port = port or 8080
         steps.append(f"Option 2: Change the port mapping in docker-compose.yml")
         steps.append(f"  ports:")
         steps.append(f"    - \"{port + 1}:80\"  # Change {port} to {port + 1}")
