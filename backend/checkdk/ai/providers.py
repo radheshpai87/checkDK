@@ -7,11 +7,13 @@ import logging
 import os
 import re
 
-# Load .env file if it exists
+# Ensure .env is loaded before reading API keys from os.getenv().
+# env.py is a thin python-dotenv wrapper; the try/except guards against
+# import errors during tests or unusual install layouts.
 try:
-    from ..env import load_env
-    load_env()
-except ImportError:
+    from ..env import load_env as _load_env
+    _load_env()
+except Exception:  # ImportError or any unexpected error — fall back to env
     pass
 
 logger = logging.getLogger(__name__)
@@ -460,19 +462,22 @@ def get_ai_provider(config=None) -> Optional[AIProvider]:
     preferred = getattr(getattr(config, "ai", None), "provider", "mistral")
     api_key = getattr(getattr(config, "ai", None), "api_key", None)
 
+    # config.ai.api_key is the key **for the preferred provider only**.
+    # The fallback provider always reads its key from the environment so
+    # that a single config.ai.api_key value is never passed to the wrong SDK.
     if preferred == "groq":
-        groq = GroqProvider(api_key=api_key)
+        groq = GroqProvider(api_key=api_key)  # use config key for Groq
         if groq.is_available():
             return groq
-        mistral = MistralProvider()
+        mistral = MistralProvider()           # fallback: use MISTRAL_API_KEY env var
         if mistral.is_available():
             return mistral
     else:
-        # Default: Mistral first
+        # Default: Mistral primary, Groq fallback
         mistral = MistralProvider(api_key=api_key if preferred == "mistral" else None)
         if mistral.is_available():
             return mistral
-        groq = GroqProvider(api_key=api_key if preferred == "groq" else None)
+        groq = GroqProvider()                  # fallback: use GROQ_API_KEY env var
         if groq.is_available():
             return groq
 

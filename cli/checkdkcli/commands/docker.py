@@ -77,7 +77,8 @@ def docker_cmd(ctx, command: tuple, dry_run: bool, force: bool) -> None:
 
     if dry_run:
         _console.print("\n[bold cyan]--dry-run:[/] Analysis complete. Skipping execution.")
-        sys.exit(0 if result.get("success") else 1)
+        # Default True: if the API somehow omits the field treat as success
+        sys.exit(0 if result.get("success", True) else 1)
 
     has_critical = any(i.get("severity") == "critical" for i in result.get("issues", []))
     if has_critical and not force:

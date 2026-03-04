@@ -58,12 +58,19 @@ def kubectl_cmd(ctx, command: tuple, dry_run: bool, force: bool) -> None:
 
     if dry_run:
         _console.print("\n[bold cyan]--dry-run:[/] Analysis complete. Skipping execution.")
-        sys.exit(0 if result.get("success") else 1)
+        sys.exit(0 if result.get("success", True) else 1)
 
     has_critical = any(i.get("severity") == "critical" for i in result.get("issues", []))
     if has_critical and not force:
         _console.print("\n[bold red]✗ Critical issues found. Use --force to execute anyway.[/]")
         sys.exit(1)
+
+    # Prompt on non-critical warnings (mirrors docker.py behaviour)
+    if result.get("issues") and not force:
+        response = _console.input("\n[yellow]⚠ Warnings detected. Continue? (y/N):[/] ").strip().lower()
+        if response not in ("y", "yes"):
+            _console.print("[yellow]Execution cancelled.[/]")
+            sys.exit(0)
 
     _console.print(f"\n[bold green]→ Executing:[/] [cyan]kubectl {' '.join(command)}[/]\n")
     sys.exit(subprocess.call(["kubectl"] + list(command)))
