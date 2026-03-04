@@ -217,7 +217,7 @@ const Playground = () => {
         </div>
 
         {/* Two-panel layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           {/* ── Left: Editor ──────────────────────────────────────────────── */}
           <div className="flex flex-col gap-3">
             {/* Toolbar */}
@@ -276,7 +276,7 @@ const Playground = () => {
 
             {/* Editor window */}
             <div
-              className={`relative rounded-xl bg-slate-900 overflow-hidden flex-1 min-h-[420px] flex flex-col transition-colors duration-200 border ${
+              className={`relative rounded-xl bg-slate-900 overflow-hidden h-[480px] flex flex-col transition-colors duration-200 border ${
                 isDragging ? 'border-violet-500/60 bg-violet-900/10' : 'border-slate-700/60'
               }`}
               onDragEnter={handleDragEnter}
@@ -321,9 +321,9 @@ const Playground = () => {
                 )}
               </div>
 
-              {/* Editor with line numbers – capped height + magenta scroll */}
-              <div className="flex flex-1 overflow-hidden max-h-[420px]">
-                <div className="flex-shrink-0 w-10 bg-slate-950/50 border-r border-slate-800 pt-4 pb-4 px-2 overflow-y-auto magenta-scrollbar select-none">
+              {/* Editor with line numbers */}
+              <div className="flex flex-1 overflow-hidden" data-lenis-prevent>
+                <div className="flex-shrink-0 w-10 bg-slate-950/50 border-r border-slate-800 pt-4 pb-4 px-2 overflow-hidden select-none">
                   {Array.from({ length: Math.max(lineCount, 20) }, (_, i) => (
                     <div key={i} className="text-slate-700 text-xs font-mono leading-6 text-right">
                       {i + 1}
@@ -392,7 +392,7 @@ const Playground = () => {
               <span className="w-3 h-3 rounded-full bg-green-500/70" />
             </div>
 
-            <div className="flex-1 p-5 overflow-y-auto magenta-scrollbar">
+            <div className="flex-1 p-5 overflow-y-auto magenta-scrollbar" data-lenis-prevent>
               {/* Idle */}
               {!isAnalyzing && !result && !error && (
                 <div className="h-full flex flex-col items-center justify-center text-center gap-4">

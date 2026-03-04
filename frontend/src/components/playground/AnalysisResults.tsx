@@ -144,7 +144,10 @@ interface AnalysisResultsProps {
   filename?: string;
 }
 
+const INITIAL_VISIBLE = 3;
+
 export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ result, filename }) => {
+  const [showAll, setShowAll] = useState(false);
   const status = STATUS_CFG[result.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.warning;
   const { Icon: StatusIcon } = status;
 
@@ -253,19 +256,33 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ result, filena
       )}
 
       {/* ── Findings ────────────────────────────────────────────────────────── */}
-      {sorted.length > 0 && (
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-violet-400" />
-            <h3 className="text-xs font-semibold text-slate-200">
-              Findings ({sorted.length})
-            </h3>
+      {sorted.length > 0 && (() => {
+        const visible = showAll ? sorted : sorted.slice(0, INITIAL_VISIBLE);
+        const remaining = sorted.length - INITIAL_VISIBLE;
+
+        return (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-violet-400" />
+              <h3 className="text-xs font-semibold text-slate-200">
+                Findings ({sorted.length})
+              </h3>
+            </div>
+            {visible.map((issue, i) => (
+              <IssueCard key={i} issue={issue} />
+            ))}
+            {remaining > 0 && (
+              <button
+                onClick={() => setShowAll((v) => !v)}
+                className="w-full py-2 rounded-lg text-xs font-medium border border-slate-700/50 bg-slate-800/40 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showAll ? 'rotate-180' : ''}`} />
+                {showAll ? 'Show less' : `Show ${remaining} more finding${remaining === 1 ? '' : 's'}`}
+              </button>
+            )}
           </div>
-          {sorted.map((issue, i) => (
-            <IssueCard key={i} issue={issue} />
-          ))}
-        </div>
-      )}
+        );
+      })()}
 
       <p className="text-center text-xs text-slate-600 pt-1">
         Powered by{' '}
