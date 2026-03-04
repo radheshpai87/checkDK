@@ -91,48 +91,41 @@ const STATUS_CFG = {
 
 // ── IssueCard ──────────────────────────────────────────────────────────────────
 
-function IssueCard({ issue, index }: { issue: AnalysisIssue; index: number }) {
-  const [open, setOpen] = useState(index === 0);
+function IssueCard({ issue }: { issue: AnalysisIssue }) {
+  const [open, setOpen] = useState(false);
   const cfg = SEVERITY_CFG[issue.severity] ?? SEVERITY_CFG.info;
   const { Icon } = cfg;
   const fix = issue.recommendation || issue.suggestion;
 
   return (
-    <div className={`rounded-xl border ${cfg.border} ${cfg.bg} overflow-hidden`}>
+    <div className={`rounded-lg border ${cfg.border} ${cfg.bg} overflow-hidden`}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-start gap-3 p-4 text-left hover:bg-white/5 transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-white/5 transition-colors"
       >
-        <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${cfg.color}`} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-slate-100">{issue.title}</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${cfg.badge}`}>{cfg.label}</span>
-            {issue.category && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-700/50 text-slate-400 border border-slate-600/40 font-mono">
-                {issue.category}
-              </span>
-            )}
-            {issue.line != null && (
-              <span className="text-xs text-slate-500 font-mono">Line {issue.line}</span>
-            )}
-          </div>
-          {!open && (
-            <p className="text-xs text-slate-500 mt-0.5 truncate">{issue.description}</p>
-          )}
-        </div>
+        <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${cfg.color}`} />
+        <span className="text-xs font-semibold text-slate-100 truncate flex-1">{issue.title}</span>
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${cfg.badge}`}>{cfg.label}</span>
+        {issue.line != null && (
+          <span className="text-[10px] text-slate-500 font-mono flex-shrink-0">L{issue.line}</span>
+        )}
         <ChevronDown
-          className={`w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={`w-3.5 h-3.5 text-slate-500 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
       {open && (
-        <div className="px-4 pb-4 space-y-3 border-t border-white/5 pt-3">
-          <p className="text-sm text-slate-300 leading-relaxed">{issue.description}</p>
+        <div className="px-3 pb-2.5 space-y-2 border-t border-white/5 pt-2">
+          <p className="text-xs text-slate-300 leading-relaxed">{issue.description}</p>
+          {issue.category && (
+            <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full bg-slate-700/50 text-slate-400 border border-slate-600/40 font-mono">
+              {issue.category}
+            </span>
+          )}
           {fix && (
-            <div className="flex items-start gap-2 bg-slate-900/50 rounded-lg p-3">
-              <Lightbulb className="w-3.5 h-3.5 text-amber-400 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-slate-300 leading-relaxed">
+            <div className="flex items-start gap-2 bg-slate-900/50 rounded-md p-2">
+              <Lightbulb className="w-3 h-3 text-amber-400 mt-0.5 flex-shrink-0" />
+              <p className="text-[11px] text-slate-300 leading-relaxed">
                 <span className="text-amber-400 font-semibold">Fix: </span>
                 {fix}
               </p>
@@ -156,7 +149,7 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ result, filena
   const { Icon: StatusIcon } = status;
 
   // SVG ring
-  const RADIUS = 48;
+  const RADIUS = 38;
   const CIRC = 2 * Math.PI * RADIUS;
   const offset = CIRC - (Math.min(100, Math.max(0, result.score)) / 100) * CIRC;
 
@@ -171,23 +164,23 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ result, filena
   const sorted = [...result.issues].sort((a, b) => PRIORITY[a.severity] - PRIORITY[b.severity]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* ── Score + summary ─────────────────────────────────────────────────── */}
-      <div className={`rounded-2xl border ${status.border} ${status.bg} p-5 flex flex-col sm:flex-row items-center gap-5`}>
+      <div className={`rounded-xl border ${status.border} ${status.bg} p-4 flex flex-col sm:flex-row items-center gap-4`}>
         {/* Score ring */}
         <div className="relative flex-shrink-0">
-          <svg width="120" height="120" className="-rotate-90">
-            <circle cx="60" cy="60" r={RADIUS} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="9" />
+          <svg width="96" height="96" className="-rotate-90">
+            <circle cx="48" cy="48" r={RADIUS} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="7" />
             <circle
-              cx="60" cy="60" r={RADIUS} fill="none"
-              stroke={status.scoreColor} strokeWidth="9"
+              cx="48" cy="48" r={RADIUS} fill="none"
+              stroke={status.scoreColor} strokeWidth="7"
               strokeDasharray={CIRC} strokeDashoffset={offset}
               strokeLinecap="round"
               style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)' }}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-bold" style={{ color: status.scoreColor }}>
+            <span className="text-2xl font-bold" style={{ color: status.scoreColor }}>
               {result.score}
             </span>
             <span className="text-[10px] text-slate-400 font-medium tracking-wide">/100</span>
@@ -203,10 +196,10 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ result, filena
               <span className="text-xs text-slate-500 truncate">— {filename}</span>
             )}
           </div>
-          <p className="text-sm text-slate-300 leading-relaxed">{result.summary}</p>
+          <p className="text-xs text-slate-300 leading-relaxed">{result.summary}</p>
 
           {/* Counts */}
-          <div className="flex flex-wrap gap-2 mt-3">
+          <div className="flex flex-wrap gap-1.5 mt-2">
             {counts.critical > 0 && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
                 {counts.critical} Critical
@@ -238,21 +231,21 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ result, filena
 
       {/* ── Highlights ──────────────────────────────────────────────────────── */}
       {Array.isArray(result.highlights) && result.highlights.length > 0 && (
-        <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="w-4 h-4 text-violet-400" />
-            <h3 className="text-sm font-semibold text-slate-200">Key Highlights</h3>
+        <div className="rounded-lg border border-slate-700/50 bg-slate-800/40 p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-3.5 h-3.5 text-violet-400" />
+            <h3 className="text-xs font-semibold text-slate-200">Key Highlights</h3>
           </div>
-          <ul className="space-y-2">
+          <ul className="space-y-1">
             {result.highlights.map((h, i) => (
               <li key={i} className="flex items-start gap-2">
                 {h.type === 'good'
-                  ? <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                  ? <CheckCircle className="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0" />
                   : h.type === 'bad'
-                    ? <XCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
-                    : <Info className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                    ? <XCircle className="w-3.5 h-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                    : <Info className="w-3.5 h-3.5 text-slate-400 mt-0.5 flex-shrink-0" />
                 }
-                <span className="text-sm text-slate-300">{h.text || h.title || h.description}</span>
+                <span className="text-xs text-slate-300">{h.text || h.title || h.description}</span>
               </li>
             ))}
           </ul>
@@ -261,15 +254,15 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ result, filena
 
       {/* ── Findings ────────────────────────────────────────────────────────── */}
       {sorted.length > 0 && (
-        <div className="space-y-2.5">
+        <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-violet-400" />
-            <h3 className="text-sm font-semibold text-slate-200">
+            <h3 className="text-xs font-semibold text-slate-200">
               Findings ({sorted.length})
             </h3>
           </div>
           {sorted.map((issue, i) => (
-            <IssueCard key={i} issue={issue} index={i} />
+            <IssueCard key={i} issue={issue} />
           ))}
         </div>
       )}

@@ -321,9 +321,9 @@ const Playground = () => {
                 )}
               </div>
 
-              {/* Editor with line numbers */}
-              <div className="flex flex-1 overflow-hidden">
-                <div className="flex-shrink-0 w-10 bg-slate-950/50 border-r border-slate-800 pt-4 pb-4 px-2 overflow-hidden select-none">
+              {/* Editor with line numbers – capped height + magenta scroll */}
+              <div className="flex flex-1 overflow-hidden max-h-[420px]">
+                <div className="flex-shrink-0 w-10 bg-slate-950/50 border-r border-slate-800 pt-4 pb-4 px-2 overflow-y-auto magenta-scrollbar select-none">
                   {Array.from({ length: Math.max(lineCount, 20) }, (_, i) => (
                     <div key={i} className="text-slate-700 text-xs font-mono leading-6 text-right">
                       {i + 1}
@@ -348,7 +348,7 @@ const Playground = () => {
                     }
                   }}
                   placeholder={`# Paste your config here, load a sample, or drag & drop a file\n\nversion: "3.9"\nservices:\n  web:\n    image: nginx:latest`}
-                  className="flex-1 bg-transparent text-slate-200 font-mono text-sm leading-6 resize-none outline-none p-4 placeholder:text-slate-700"
+                  className="flex-1 bg-transparent text-slate-200 font-mono text-sm leading-6 resize-none outline-none p-4 placeholder:text-slate-700 magenta-scrollbar"
                   spellCheck={false}
                   autoComplete="off"
                   autoCorrect="off"
@@ -384,7 +384,7 @@ const Playground = () => {
           </div>
 
           {/* ── Right: Results ────────────────────────────────────────────── */}
-          <div className="min-h-[540px] rounded-xl border border-slate-700/60 bg-slate-900/30 flex flex-col overflow-hidden">
+          <div className="min-h-[540px] max-h-[80vh] rounded-xl border border-slate-700/60 bg-slate-900/30 flex flex-col overflow-hidden">
             {/* Window chrome */}
             <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-slate-800 bg-slate-950 flex-shrink-0">
               <span className="w-3 h-3 rounded-full bg-red-500/70" />
@@ -392,7 +392,7 @@ const Playground = () => {
               <span className="w-3 h-3 rounded-full bg-green-500/70" />
             </div>
 
-            <div className="flex-1 p-5 overflow-y-auto">
+            <div className="flex-1 p-5 overflow-y-auto magenta-scrollbar">
               {/* Idle */}
               {!isAnalyzing && !result && !error && (
                 <div className="h-full flex flex-col items-center justify-center text-center gap-4">
