@@ -171,7 +171,7 @@ const Navbar = () => {
                     key={item.label}
                     href={href}
                     onClick={(e) => { e.preventDefault(); handleNavClick(href); }}
-                    className={`relative px-2.5 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? 'text-white' : 'text-slate-300 hover:text-white'
+                    className={`relative px-2 py-2 rounded-lg text-sm font-medium transition-colors ${isActive ? 'text-white' : 'text-slate-300 hover:text-white'
                       }`}
                     whileTap={{ scale: 0.95 }}
                   >

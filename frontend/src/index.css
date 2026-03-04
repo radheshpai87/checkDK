@@ -40,6 +40,29 @@ html {
   background: linear-gradient(to bottom, #4f46e5, #7c3aed);
 }
 
+/* ── Sleek magenta scrollbar for playground panels ─────────────── */
+.magenta-scrollbar {
+  scroll-behavior: smooth;
+}
+.magenta-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.magenta-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.magenta-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #d946ef, #a21caf);
+  border-radius: 999px;
+}
+.magenta-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #e879f9, #c026d3);
+}
+/* Firefox */
+.magenta-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #c026d3 transparent;
+}
+
 @keyframes meteor {
   0% { transform: rotate(215deg) translateX(0); opacity: 1; }
   70% { opacity: 1; }
