@@ -277,9 +277,6 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ result, filena
       <p className="text-center text-xs text-slate-600 pt-1">
         Powered by{' '}
         <span className="text-violet-500 font-medium">CheckDK</span>
-        {result.provider && (
-          <span className="text-slate-600"> — {result.provider}</span>
-        )}
       </p>
     </div>
   );

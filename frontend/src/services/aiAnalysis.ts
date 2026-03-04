@@ -30,7 +30,7 @@ export interface AnalysisResult {
   summary: string;
   issues: AnalysisIssue[];
   highlights: AnalysisHighlight[];
-  provider?: string;        // e.g. "mistral", "groq+rules", "rule-engine"
+  provider?: string;        // internal provider identifier, not shown in UI
 }
 
 // ── API URL resolution ────────────────────────────────────────────────────────
@@ -78,5 +78,8 @@ export async function analyze(
     throw new Error(`Backend returned ${res.status}: ${body}`);
   }
 
-  return (await res.json()) as AnalysisResult;
+  const result = (await res.json()) as AnalysisResult;
+  // Debug: log which provider handled the request
+  console.debug('[CheckDK] analysis provider:', result.provider ?? 'unknown');
+  return result;
 }

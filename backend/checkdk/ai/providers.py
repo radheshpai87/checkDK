@@ -277,8 +277,10 @@ class MistralProvider(AIProvider):
         self.api_key = api_key or os.getenv("MISTRAL_API_KEY")
         self.model = "mistral-large-latest"
 
+    _PLACEHOLDERS = {"your_mistral_api_key_here", "your_api_key_here", "", "placeholder", "changeme"}
+
     def is_available(self) -> bool:
-        return bool(self.api_key)
+        return bool(self.api_key) and self.api_key.strip().lower() not in self._PLACEHOLDERS
 
     def analyze_error(self, error_message: str, config_snippet: str, context: dict) -> dict:
         if not self.is_available():
@@ -368,8 +370,10 @@ class GroqProvider(AIProvider):
         self.api_key = api_key or os.getenv("GROQ_API_KEY")
         self.model = "llama-3.3-70b-versatile"
 
+    _PLACEHOLDERS = {"your_groq_api_key_here", "your_api_key_here", "", "placeholder", "changeme"}
+
     def is_available(self) -> bool:
-        return bool(self.api_key)
+        return bool(self.api_key) and self.api_key.strip().lower() not in self._PLACEHOLDERS
 
     def analyze_error(self, error_message: str, config_snippet: str, context: dict) -> dict:
         if not self.is_available():

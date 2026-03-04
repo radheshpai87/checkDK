@@ -557,48 +557,63 @@ async def analyze_playground_endpoint(request: PlaygroundRequest) -> PlaygroundR
 
     filename = request.filename
 
-    # ── Step 1: LLM analysis (primary) ──────────────────────────────────────
+    # ── Step 1: LLM analysis (primary, with per-provider fallback) ────────────
     llm_result: PlaygroundResult | None = None
+
+    def _call_provider(prov) -> "PlaygroundResult | None":
+        """Call analyze_config and normalise the result. Returns None on failure."""
+        try:
+            raw = prov.analyze_config(content, filename=filename)
+        except Exception as exc:
+            logger.warning("Provider %s raised during analyze_config: %s", type(prov).__name__, exc)
+            return None
+        if not isinstance(raw, dict) or "error" in raw:
+            logger.warning("Provider %s returned error/bad response: %s", type(prov).__name__, raw)
+            return None
+        norm_issues = []
+        for ri in raw.get("issues", []):
+            if isinstance(ri, dict):
+                norm_issues.append(PlaygroundIssue(
+                    severity=ri.get("severity", "info"),
+                    title=ri.get("title", "Untitled"),
+                    description=ri.get("description", ""),
+                    line=ri.get("line"),
+                    recommendation=ri.get("recommendation") or ri.get("suggestion"),
+                    category=ri.get("category"),
+                ))
+        norm_highlights = []
+        for rh in raw.get("highlights", []):
+            if isinstance(rh, dict):
+                norm_highlights.append(PlaygroundHighlight(
+                    type=rh.get("type"),
+                    text=rh.get("text"),
+                    title=rh.get("title"),
+                    description=rh.get("description"),
+                ))
+        return PlaygroundResult(
+            score=raw.get("score", 50),
+            status=raw.get("status", "warning"),
+            summary=raw.get("summary", ""),
+            issues=norm_issues,
+            highlights=norm_highlights,
+            provider=raw.get("provider", "llm"),
+        )
+
     try:
-        from ...ai.providers import get_ai_provider
+        from ...ai.providers import get_ai_provider, MistralProvider, GroqProvider
 
         provider = get_ai_provider()
         if provider is not None:
-            raw = provider.analyze_config(content, filename=filename)
-            if isinstance(raw, dict) and "error" not in raw:
-                # Normalise issues
-                norm_issues = []
-                for ri in raw.get("issues", []):
-                    if isinstance(ri, dict):
-                        norm_issues.append(PlaygroundIssue(
-                            severity=ri.get("severity", "info"),
-                            title=ri.get("title", "Untitled"),
-                            description=ri.get("description", ""),
-                            line=ri.get("line"),
-                            recommendation=ri.get("recommendation") or ri.get("suggestion"),
-                            category=ri.get("category"),
-                        ))
-
-                norm_highlights = []
-                for rh in raw.get("highlights", []):
-                    if isinstance(rh, dict):
-                        norm_highlights.append(PlaygroundHighlight(
-                            type=rh.get("type"),
-                            text=rh.get("text"),
-                            title=rh.get("title"),
-                            description=rh.get("description"),
-                        ))
-
-                llm_result = PlaygroundResult(
-                    score=raw.get("score", 50),
-                    status=raw.get("status", "warning"),
-                    summary=raw.get("summary", ""),
-                    issues=norm_issues,
-                    highlights=norm_highlights,
-                    provider=raw.get("provider", "llm"),
-                )
-            elif isinstance(raw, dict) and "error" in raw:
-                logger.warning("LLM provider returned error: %s", raw["error"])
+            llm_result = _call_provider(provider)
+            # If primary failed, try the other provider explicitly
+            if llm_result is None:
+                logger.warning("Primary provider %s failed — trying fallback", type(provider).__name__)
+                if isinstance(provider, MistralProvider):
+                    fallback = GroqProvider()
+                else:
+                    fallback = MistralProvider()
+                if fallback.is_available():
+                    llm_result = _call_provider(fallback)
     except Exception as exc:
         logger.warning("LLM analysis failed, falling back to rules: %s", exc)
 
