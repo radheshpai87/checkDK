@@ -17,6 +17,11 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Local test pages — not for production
+public/test.html
+public/auth/
+public/authcallback.html
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

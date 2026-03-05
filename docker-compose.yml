@@ -10,6 +10,22 @@ services:
       - "8000:8000"
     env_file:
       - .env                    # MISTRAL_API_KEY, GROQ_API_KEY, CORS_ORIGINS, etc.
+    environment:
+      # Explicitly forwarded so the backend always gets the right values
+      # regardless of env_file parsing quirks.
+      - FRONTEND_URL=http://localhost:3000
+      - APP_BASE_URL=http://localhost:3000
+      - OAUTH_CALLBACK_BASE=http://localhost:3000/api
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
+      - DYNAMODB_REGION=${DYNAMODB_REGION:-us-east-1}
+      - DYNAMODB_USERS_TABLE=${DYNAMODB_USERS_TABLE:-checkdk_users}
+      - DYNAMODB_HISTORY_TABLE=${DYNAMODB_HISTORY_TABLE:-checkdk_history}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
