@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import secrets
 from typing import Optional
 
 import jwt
@@ -12,7 +13,28 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 logger = logging.getLogger(__name__)
 
-JWT_SECRET: str = os.getenv("JWT_SECRET", "dev-secret-change-in-production")
+
+def _resolve_jwt_secret() -> str:
+    """Return the JWT signing secret.
+
+    If ``JWT_SECRET`` is not set in the environment a random 256-bit hex
+    secret is generated at process startup.  This keeps local development
+    functional (tokens simply won't survive a server restart) while
+    ensuring the app **never** falls back to a publicly-known string.
+    """
+    secret = os.getenv("JWT_SECRET", "").strip()
+    if not secret:
+        secret = secrets.token_hex(32)  # 256-bit random secret
+        logger.warning(
+            "JWT_SECRET is not set — generated an ephemeral random secret. "
+            "Tokens will NOT survive a server restart. "
+            "Set JWT_SECRET in your environment for production use "
+            "(e.g. `openssl rand -hex 32`)."
+        )
+    return secret
+
+
+JWT_SECRET: str = _resolve_jwt_secret()
 JWT_ALGORITHM: str = "HS256"
 
 _bearer_scheme = HTTPBearer(auto_error=False)
