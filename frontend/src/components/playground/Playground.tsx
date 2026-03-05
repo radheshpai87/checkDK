@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Play, Copy, Check, FileText, Upload, Loader2, ChevronDown,
 } from 'lucide-react';
@@ -108,6 +108,9 @@ const Playground = () => {
   const [showSamples, setShowSamples] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
+  // Refs for the two inner-scrollable containers
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const resultsScrollRef = useRef<HTMLDivElement>(null);
 
   // ── File handling ───────────────────────────────────────────────────────────
   const loadFile = useCallback((file: File) => {
@@ -193,6 +196,72 @@ const Playground = () => {
   };
 
   const lineCount = code.split('\n').length;
+
+  // ── Double-boundary scroll chaining ─────────────────────────────────────────
+  // How it works:
+  //   • Both elements are registered in window.__lenisPreventMap ('prevent' by
+  //     default) so Lenis ignores their wheel events unless we change the state.
+  //   • When the user hits a scroll boundary:
+  //       – FIRST hit  → set map to 'chain' (arm), absorb the event entirely.
+  //       – SECOND hit → map is already 'chain', do NOT call preventDefault;
+  //         the event bubbles to Lenis, whose prevent() callback sees 'chain'
+  //         and lets Lenis handle it → page scrolls smoothly via Lenis itself.
+  //   • As soon as the element is no longer at a boundary, map resets to
+  //     'prevent' so the next boundary hit starts fresh.
+  useEffect(() => {
+    const attachHandler = (el: HTMLElement | null) => {
+      if (!el) return () => {};
+
+      // Register this element as 'prevent' so Lenis ignores it by default.
+      window.__lenisPreventMap?.set(el, 'prevent');
+
+      const handler = (e: WheelEvent) => {
+        const map = window.__lenisPreventMap;
+        if (!map) return;
+
+        const { scrollTop, scrollHeight, clientHeight } = el;
+        const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+        const atTop    = scrollTop <= 0;
+        const atBoundary =
+          (atBottom && e.deltaY > 0) || (atTop && e.deltaY < 0);
+
+        if (!atBoundary) {
+          // Mid-inner-scroll: ensure Lenis stays prevented.
+          map.set(el, 'prevent');
+          return; // let browser scroll the inner element natively
+        }
+
+        const prevState = map.get(el) ?? 'prevent';
+
+        if (prevState === 'prevent') {
+          // FIRST boundary hit: arm for next event, then absorb this one.
+          map.set(el, 'chain');
+          e.preventDefault();    // stop browser from bouncing / scrolling page
+          e.stopPropagation();   // stop Lenis from seeing this event
+          return;
+        }
+
+        // SECOND+ boundary hit (prevState === 'chain'):
+        // Do NOT call preventDefault or stopPropagation.
+        // The event bubbles to Lenis; prevent() returns false for 'chain' nodes
+        // → Lenis processes the event and smoothly scrolls the page.
+        // (State stays 'chain' so continued scrolling keeps chaining.)
+      };
+
+      el.addEventListener('wheel', handler, { passive: false });
+      return () => {
+        el.removeEventListener('wheel', handler);
+        window.__lenisPreventMap?.delete(el);
+      };
+    };
+
+    const cleanupEditor  = attachHandler(editorRef.current);
+    const cleanupResults = attachHandler(resultsScrollRef.current);
+    return () => {
+      cleanupEditor();
+      cleanupResults();
+    };
+  }, []);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -322,7 +391,7 @@ const Playground = () => {
               </div>
 
               {/* Editor with line numbers */}
-              <div className="flex flex-1 overflow-hidden" data-lenis-prevent>
+              <div className="flex flex-1 overflow-hidden">
                 <div className="flex-shrink-0 w-10 bg-slate-950/50 border-r border-slate-800 pt-4 pb-4 px-2 overflow-hidden select-none">
                   {Array.from({ length: Math.max(lineCount, 20) }, (_, i) => (
                     <div key={i} className="text-slate-700 text-xs font-mono leading-6 text-right">
@@ -348,6 +417,7 @@ const Playground = () => {
                     }
                   }}
                   placeholder={`# Paste your config here, load a sample, or drag & drop a file\n\nversion: "3.9"\nservices:\n  web:\n    image: nginx:latest`}
+                  ref={editorRef}
                   className="flex-1 bg-transparent text-slate-200 font-mono text-sm leading-6 resize-none outline-none p-4 placeholder:text-slate-700 magenta-scrollbar"
                   spellCheck={false}
                   autoComplete="off"
@@ -392,7 +462,7 @@ const Playground = () => {
               <span className="w-3 h-3 rounded-full bg-green-500/70" />
             </div>
 
-            <div className="flex-1 p-5 overflow-y-auto magenta-scrollbar" data-lenis-prevent>
+            <div ref={resultsScrollRef} className="flex-1 p-5 overflow-y-auto magenta-scrollbar">
               {/* Idle */}
               {!isAnalyzing && !result && !error && (
                 <div className="h-full flex flex-col items-center justify-center text-center gap-4">

@@ -16,6 +16,15 @@ import DemoPage from './pages/DemoPage'
 
 gsap.registerPlugin(ScrollTrigger)
 
+// Expose Lenis globally; also expose the boundary-prevent map so Playground
+// can arm/disarm Lenis permission per inner-scroll element.
+declare global {
+  interface Window {
+    __lenis: Lenis | null
+    __lenisPreventMap: WeakMap<Element, 'prevent' | 'chain'> | null
+  }
+}
+
 // ── Shared page transition variants ──────────────────────────────────────────
 
 const pageVariants = {
@@ -53,14 +62,30 @@ function App() {
   const location = useLocation()
 
   useEffect(() => {
+    // Boundary-prevent map: Playground writes to this; our prevent callback reads it.
+    //   'prevent' → Lenis should ignore this element (native inner scroll)
+    //   'chain'   → Lenis should process this element (page scroll)
+    window.__lenisPreventMap = new WeakMap()
+
     const lenis = new Lenis({
       duration: 1.2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,
+      // Dynamically allow/prevent Lenis based on the map Playground manages.
+      // When an element is mapped to 'prevent', Lenis ignores wheel events from
+      // it (inner element scrolls natively). When mapped to 'chain', Lenis
+      // processes the event and smoothly scrolls the page as normal.
+      prevent: (node: HTMLElement) => {
+        const state = window.__lenisPreventMap?.get(node)
+        // Undefined = not managed by us → don't prevent Lenis.
+        if (state === undefined) return false
+        return state === 'prevent'
+      },
     })
 
+    window.__lenis = lenis
     lenisRef.current = lenis
 
     // Intercept anchor clicks so Lenis handles them smoothly
@@ -93,6 +118,8 @@ function App() {
       document.removeEventListener('click', handleAnchorClick)
       gsap.ticker.remove(tickerCallback)
       lenis.destroy()
+      window.__lenis = null
+      window.__lenisPreventMap = null
     }
   }, [])
 
