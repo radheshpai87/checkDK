@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { HoverBorderGradient } from "./ui/HoverBorderGradient";
 import { TextShimmer } from "./ui/TextShimmer";
 import { Meteors } from "./ui/Meteors";
+import { useAuth } from "../context/AuthContext";
 
 const Hero = () => {
   const containerRef = useRef<HTMLElement>(null);
@@ -12,6 +13,7 @@ const Hero = () => {
   const glow1Ref = useRef<HTMLDivElement>(null);
   const glow2Ref = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const { isAuthenticated } = useAuth();
 
   useGSAP(() => {
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
@@ -80,11 +82,11 @@ const Hero = () => {
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <HoverBorderGradient
-            as="a"
-            href="#installation"
+            as={Link}
+            to={isAuthenticated ? '/app/dashboard' : '/login'}
             className="!bg-slate-900 text-white px-8 py-3 text-base w-full sm:w-auto justify-center"
           >
-            Get Started →
+            {isAuthenticated ? 'Go to Dashboard →' : 'Get Started Free →'}
           </HoverBorderGradient>
 
           <Link
