@@ -31,6 +31,9 @@ dependencies = [
     "requests>=2.31.0",
     "groq>=0.4.0",
     "mistralai>=1.0.0",
+    "boto3>=1.28.0",
+    "PyJWT>=2.8.0",
+    "httpx>=0.27.0",
 ]
 
 [project.optional-dependencies]
@@ -42,7 +45,6 @@ dev = [
     "mypy>=1.5.0",
 ]
 ai = [
-    "boto3>=1.28.0",
     "anthropic>=0.18.0",
 ]
 k8s = [

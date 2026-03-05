@@ -9,9 +9,11 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from ...auth.dependencies import get_optional_user
+from ...db.dynamodb import save_history
 from ...models import (
     AnalysisResult,
     PlaygroundHighlight,
@@ -27,6 +29,40 @@ _MAX_CONTENT_BYTES = 1_048_576  # 1 MB
 
 class AnalyzeRequest(BaseModel):
     content: str  # Raw YAML content of the config file
+    filename: Optional[str] = Field(
+        None,
+        description="Optional filename hint (e.g. 'docker-compose.yml', 'deployment.yaml')",
+    )
+
+
+# ── History helpers ────────────────────────────────────────────────────────────
+
+def _analysis_result_to_history_data(result: "AnalysisResult") -> dict:
+    """Derive score / status / topCategories from a rule-based AnalysisResult."""
+    issues = result.issues or []
+    total = len(issues)
+
+    # Severity → weight for score
+    severity_weight = {"critical": 20, "high": 10, "medium": 5, "low": 2, "info": 0}
+    penalty = sum(severity_weight.get(str(i.severity).lower(), 0) for i in issues)
+    score = max(0, min(100, 100 - penalty))
+
+    if score >= 80:
+        hist_status = "good"
+    elif score >= 50:
+        hist_status = "warning"
+    else:
+        hist_status = "critical"
+
+    # Collect top issue types as category strings
+    from collections import Counter
+    cat_counter: Counter = Counter()
+    for issue in issues:
+        cat = str(issue.type).lower().replace("issuetype.", "")
+        cat_counter[cat] += 1
+    top_categories = [cat for cat, _ in cat_counter.most_common(3)]
+
+    return {"score": score, "status": hist_status, "top_categories": top_categories, "issue_count": total}
 
 
 class PlaygroundRequest(BaseModel):
@@ -49,7 +85,11 @@ class PlaygroundRequest(BaseModel):
         "list of issues, severities, and AI-enhanced fix suggestions."
     ),
 )
-async def analyze_docker_compose_endpoint(request: AnalyzeRequest) -> AnalysisResult:
+async def analyze_docker_compose_endpoint(
+    request: AnalyzeRequest,
+    background_tasks: BackgroundTasks,
+    current_user: Optional[dict] = Depends(get_optional_user),
+) -> AnalysisResult:
     # Write to a temp file so existing parser logic can use a file path
     tmp = tempfile.NamedTemporaryFile(
         mode="w", suffix=".yml", delete=False, encoding="utf-8"
@@ -61,6 +101,20 @@ async def analyze_docker_compose_endpoint(request: AnalyzeRequest) -> AnalysisRe
         from ...services.analysis import analyze_docker_compose
 
         result = analyze_docker_compose(Path(tmp.name), use_ai=True)
+
+        if current_user:
+            hist = _analysis_result_to_history_data(result)
+            background_tasks.add_task(
+                save_history,
+                user_id=current_user["sub"],
+                config_type="docker-compose",
+                filename=request.filename,
+                score=hist["score"],
+                status=hist["status"],
+                issue_count=hist["issue_count"],
+                top_categories=hist["top_categories"],
+            )
+
         return result
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -82,7 +136,11 @@ async def analyze_docker_compose_endpoint(request: AnalyzeRequest) -> AnalysisRe
         "ConfigMap, …) and get back issues and AI-powered fix suggestions."
     ),
 )
-async def analyze_kubernetes_endpoint(request: AnalyzeRequest) -> AnalysisResult:
+async def analyze_kubernetes_endpoint(
+    request: AnalyzeRequest,
+    background_tasks: BackgroundTasks,
+    current_user: Optional[dict] = Depends(get_optional_user),
+) -> AnalysisResult:
     tmp = tempfile.NamedTemporaryFile(
         mode="w", suffix=".yaml", delete=False, encoding="utf-8"
     )
@@ -93,6 +151,20 @@ async def analyze_kubernetes_endpoint(request: AnalyzeRequest) -> AnalysisResult
         from ...services.analysis import analyze_kubernetes
 
         result = analyze_kubernetes(tmp.name)
+
+        if current_user:
+            hist = _analysis_result_to_history_data(result)
+            background_tasks.add_task(
+                save_history,
+                user_id=current_user["sub"],
+                config_type="kubernetes",
+                filename=request.filename,
+                score=hist["score"],
+                status=hist["status"],
+                issue_count=hist["issue_count"],
+                top_categories=hist["top_categories"],
+            )
+
         return result
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -547,7 +619,11 @@ def _summary_from_rules(issues: list[PlaygroundIssue]) -> str:
         "checks (secondary). If LLM providers fail, falls back to pure rule-based."
     ),
 )
-async def analyze_playground_endpoint(request: PlaygroundRequest) -> PlaygroundResult:
+async def analyze_playground_endpoint(
+    request: PlaygroundRequest,
+    background_tasks: BackgroundTasks,
+    current_user: Optional[dict] = Depends(get_optional_user),
+) -> PlaygroundResult:
     if len(request.content.encode("utf-8")) > _MAX_CONTENT_BYTES:
         raise HTTPException(status_code=413, detail="Content exceeds 1 MB limit")
 
@@ -625,4 +701,21 @@ async def analyze_playground_endpoint(request: PlaygroundRequest) -> PlaygroundR
         logger.warning("Rule-based analysis failed: %s", exc)
 
     # ── Step 3: Merge ──────────────────────────────────────────────────────
-    return _merge_results(llm_result, rule_issues)
+    final_result = _merge_results(llm_result, rule_issues)
+
+    if current_user:
+        config_type = _detect_config_type(content, request.filename) if request.filename else "unknown"
+        top_cats = [i.category for i in final_result.issues if i.category][:3]
+        background_tasks.add_task(
+            save_history,
+            user_id=current_user["sub"],
+            config_type=config_type,
+            filename=request.filename,
+            score=final_result.score,
+            status=final_result.status,
+            issue_count=len(final_result.issues),
+            top_categories=list(dict.fromkeys(top_cats)),  # deduplicated, order-preserving
+            provider=final_result.provider,
+        )
+
+    return final_result

@@ -72,3 +72,6 @@ ml-models/models/**/*.pkl
 ml-models/models/**/*.pt
 ml-models/reports/
 backend/checkdk/ml/artifacts/
+
+# md files
+planning.md
