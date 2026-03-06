@@ -60,19 +60,24 @@ jobs:
           if [ "$STATUS" = "PAUSED" ]; then
             echo "Resuming paused service..."
             aws apprunner resume-service --service-arn "$SERVICE_ARN"
-            # Wait until RUNNING (up to 5 minutes)
-            for i in $(seq 1 30); do
+          fi
+
+          # Wait until RUNNING for any non-RUNNING state (PAUSED, OPERATION_IN_PROGRESS, etc.)
+          if [ "$STATUS" != "RUNNING" ]; then
+            echo "Waiting for service to reach RUNNING state..."
+            for i in $(seq 1 36); do
               sleep 10
               STATUS=$(aws apprunner describe-service \
                 --service-arn "$SERVICE_ARN" \
                 --query 'Service.Status' --output text)
-              echo "  [$i/30] Status: $STATUS"
+              echo "  [$i/36] Status: $STATUS"
               [ "$STATUS" = "RUNNING" ] && break
             done
           fi
 
           if [ "$STATUS" != "RUNNING" ]; then
-            echo "Service still not RUNNING (status: $STATUS) — triggering deployment anyway"
+            echo "ERROR: Service did not reach RUNNING state in time (last status: $STATUS)"
+            exit 1
           fi
 
           aws apprunner start-deployment --service-arn "$SERVICE_ARN"
