@@ -24,7 +24,11 @@
     {
       "Sid": "AppRunnerDeploy",
       "Effect": "Allow",
-      "Action": "apprunner:StartDeployment",
+      "Action": [
+        "apprunner:StartDeployment",
+        "apprunner:ResumeService",
+        "apprunner:DescribeService"
+      ],
       "Resource": "arn:aws:apprunner:us-east-1:739524777782:service/checkdk-backend/*"
     },
     {
