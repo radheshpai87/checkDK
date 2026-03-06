@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Playground from '../components/playground/Playground'
 import Dashboard from '../components/dashboard/Dashboard'
+import { useAuth } from '../context/AuthContext'
 
 const pageVariants = {
     initial: { opacity: 0, y: 20 },
@@ -11,6 +12,13 @@ const pageVariants = {
 }
 
 const DemoPage = () => {
+    const { isAuthenticated, isLoading } = useAuth()
+
+    // Authenticated users have a real dashboard — send them there.
+    if (!isLoading && isAuthenticated) {
+        return <Navigate to="/app/dashboard" replace />
+    }
+
     return (
         <motion.div
             variants={pageVariants}

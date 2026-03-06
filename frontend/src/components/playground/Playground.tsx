@@ -2,9 +2,11 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Play, Copy, Check, FileText, Upload, Loader2, ChevronDown,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { analyze } from '../../services/aiAnalysis';
 import type { AnalysisResult } from '../../services/aiAnalysis';
 import { AnalysisResults } from './AnalysisResults';
+import { useAuth } from '../../context/AuthContext';
 
 // ── Sample configs (deliberately misconfigured for demo) ────────────────────────────────────────────────────────────────────
 
@@ -98,6 +100,7 @@ const ACCEPTED = '.yml,.yaml,.json,.tf,.toml';
 // ── Playground ────────────────────────────────────────────────────────────────
 
 const Playground = () => {
+  const { token, isAuthenticated } = useAuth();
   const [code, setCode] = useState<string>(SAMPLE_CONFIGS['S3 Bucket']);
   const [copied, setCopied] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -164,7 +167,7 @@ const Playground = () => {
     setResult(null);
     setError(null);
     try {
-      const data = await analyze(code, uploadedFilename);
+      const data = await analyze(code, uploadedFilename, token);
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
@@ -283,6 +286,22 @@ const Playground = () => {
             analyses it instantly for security issues, misconfigurations, and
             best-practice violations.
           </p>
+
+          {/* Sign-in nudge for unauthenticated users */}
+          {!isAuthenticated && (
+            <div className="mt-5 inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-sm">
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span>
+                Rule-based checks only.{' '}
+                <Link to="/login" className="underline underline-offset-2 hover:text-amber-200 transition-colors">
+                  Sign in
+                </Link>{' '}
+                for full AI-powered analysis.
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Two-panel layout */}
