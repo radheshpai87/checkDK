@@ -48,10 +48,33 @@ jobs:
           docker push "$REGISTRY/$REPOSITORY:latest"
           echo "uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
 
-      - name: Trigger App Runner redeploy
+      - name: Ensure App Runner is running, then deploy
         env:
           SERVICE_ARN: ${{ secrets.APPRUNNER_SERVICE_ARN }}
         run: |
+          STATUS=$(aws apprunner describe-service \
+            --service-arn "$SERVICE_ARN" \
+            --query 'Service.Status' --output text)
+          echo "Current App Runner status: $STATUS"
+
+          if [ "$STATUS" = "PAUSED" ]; then
+            echo "Resuming paused service..."
+            aws apprunner resume-service --service-arn "$SERVICE_ARN"
+            # Wait until RUNNING (up to 5 minutes)
+            for i in $(seq 1 30); do
+              sleep 10
+              STATUS=$(aws apprunner describe-service \
+                --service-arn "$SERVICE_ARN" \
+                --query 'Service.Status' --output text)
+              echo "  [$i/30] Status: $STATUS"
+              [ "$STATUS" = "RUNNING" ] && break
+            done
+          fi
+
+          if [ "$STATUS" != "RUNNING" ]; then
+            echo "Service still not RUNNING (status: $STATUS) — triggering deployment anyway"
+          fi
+
           aws apprunner start-deployment --service-arn "$SERVICE_ARN"
           echo "Deployment triggered — App Runner will pick up the new :latest image."
 
