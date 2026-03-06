@@ -10,7 +10,6 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
   useCallback,
   type ReactNode,
 } from 'react';
@@ -77,25 +76,25 @@ const AuthContext = createContext<AuthContextValue>({
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // On mount: restore token from localStorage
-  useEffect(() => {
+  // Lazy initialisers run synchronously before first render, so we never need
+  // to call setState inside a useEffect just to hydrate from localStorage.
+  const [token, setToken] = useState<string | null>(() => {
     const stored = localStorage.getItem(TOKEN_KEY);
-    if (stored) {
-      const decoded = decodeJwtPayload(stored);
-      if (decoded) {
-        setToken(stored);
-        setUser(decoded);
-      } else {
-        // Token expired or invalid — clean up
-        localStorage.removeItem(TOKEN_KEY);
-      }
+    if (!stored) return null;
+    return decodeJwtPayload(stored) ? stored : null;
+  });
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (!stored) return null;
+    const decoded = decodeJwtPayload(stored);
+    if (!decoded) {
+      localStorage.removeItem(TOKEN_KEY);
+      return null;
     }
-    setIsLoading(false);
-  }, []);
+    return decoded;
+  });
+  // isLoading is false immediately because lazy init is synchronous.
+  const [isLoading] = useState(false);
 
   const login = useCallback((newToken: string) => {
     const decoded = decodeJwtPayload(newToken);
@@ -132,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthContextValue {
   return useContext(AuthContext);
 }
