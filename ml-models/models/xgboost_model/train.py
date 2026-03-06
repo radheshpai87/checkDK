@@ -5,15 +5,21 @@ Trains on pod_failure_dataset.csv and saves the model + scaler to disk.
 """
 
 import os
+import json
 import joblib
 import pandas as pd
 import numpy as np
 import xgboost as xgb
+from datetime import datetime, timezone
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
+    accuracy_score,
     classification_report,
     confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
     roc_auc_score,
 )
 
@@ -100,11 +106,33 @@ def train():
     for feat, imp in sorted(zip(FEATURES, importances), key=lambda x: -x[1]):
         print(f"  {feat:<25} {imp:.4f}")
 
-    # Persist
+    # Persist model + scaler
     joblib.dump(clf, MODEL_PATH)
     joblib.dump(scaler, SCALER_PATH)
     print(f"\n[XGBoost] Model saved to {MODEL_PATH}")
     print(f"[XGBoost] Scaler saved to {SCALER_PATH}")
+
+    # Persist metrics to JSON for the dashboard
+    metrics_data = {
+        "name": "xgboost",
+        "display_name": "XGBoost",
+        "algorithm": "XGBClassifier (300 trees, lr=0.05, hist)",
+        "trained_at": datetime.now(timezone.utc).isoformat(),
+        "accuracy": round(float(accuracy_score(y_test, y_pred)), 4),
+        "precision": round(float(precision_score(y_test, y_pred, zero_division=0)), 4),
+        "recall": round(float(recall_score(y_test, y_pred, zero_division=0)), 4),
+        "f1": round(float(f1_score(y_test, y_pred, zero_division=0)), 4),
+        "roc_auc": round(float(roc_auc_score(y_test, y_proba)), 4),
+        "confusion_matrix": confusion_matrix(y_test, y_pred).tolist(),
+        "feature_importances": [
+            {"feature": feat, "importance": round(float(imp), 4)}
+            for feat, imp in sorted(zip(FEATURES, importances), key=lambda x: -x[1])
+        ],
+    }
+    metrics_path = os.path.join(BASE_DIR, "metrics.json")
+    with open(metrics_path, "w") as mf:
+        json.dump(metrics_data, mf, indent=2)
+    print(f"[XGBoost] Metrics saved to {metrics_path}")
 
 
 if __name__ == "__main__":

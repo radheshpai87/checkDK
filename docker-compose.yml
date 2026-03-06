@@ -1,5 +1,24 @@
 services:
 
+  # ── ML Models Inference API ──────────────────────────────────────────────────
+  ml-models:
+    build:
+      context: ./ml-models
+      dockerfile: Dockerfile
+      target: api
+    image: checkdk-ml-models:latest
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./ml-models/models:/app/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
   # ── Backend (FastAPI + ML + LLM) ─────────────────────────────────────────
   backend:
     build:
@@ -10,6 +29,8 @@ services:
       - "8000:8000"
     env_file:
       - .env                    # MISTRAL_API_KEY, GROQ_API_KEY, CORS_ORIGINS, etc.
+    volumes:
+      - ./ml-models/models:/app/ml_models_data:ro
     environment:
       # Explicitly forwarded so the backend always gets the right values
       # regardless of env_file parsing quirks.
@@ -26,6 +47,9 @@ services:
       - DYNAMODB_HISTORY_TABLE=${DYNAMODB_HISTORY_TABLE:-checkdk_history}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    depends_on:
+      ml-models:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s
