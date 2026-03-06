@@ -9,7 +9,7 @@
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:radheshpai87/checkDK_AWS:*"
+          "token.actions.githubusercontent.com:sub": "repo:radheshpai87/checkDK:*"
         }
       }
     }
