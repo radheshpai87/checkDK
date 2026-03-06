@@ -1,14 +1,32 @@
-
+/* eslint-disable react-hooks/purity */
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 
+interface MeteorConfig {
+  duration: number;
+  delay: number;
+  startX: number;
+  repeatDelay: number;
+}
+
 export const Meteors = ({ number = 16 }: { number?: number }) => {
-  const meteors = new Array(number).fill(true);
+  // Precompute all random values once so they don't change on re-render
+  // (calling Math.random() directly inside JSX violates react-hooks/purity)
+  const configs = useMemo<MeteorConfig[]>(
+    () =>
+      Array.from({ length: number }, (_, idx) => ({
+        duration: Math.random() * 1.5 + 2,
+        delay: idx * 1.2 + Math.random() * 5,
+        startX: Math.floor(Math.random() * 40) - 10,
+        repeatDelay: Math.random() * 8 + 5,
+      })),
+    [number],
+  );
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {meteors.map((_, idx) => {
-        const duration = Math.random() * 1.5 + 2;
-        const delay = idx * 1.2 + Math.random() * 5;
-        const startX = Math.floor(Math.random() * 40) - 10;
+      {configs.map((cfg, idx) => {
+        const { duration, delay, startX, repeatDelay } = cfg;
 
         return (
           <motion.div
@@ -23,10 +41,10 @@ export const Meteors = ({ number = 16 }: { number?: number }) => {
               top: ['-5%', '105%'],
             }}
             transition={{
-              duration: duration,
-              delay: delay,
+              duration,
+              delay,
               repeat: Infinity,
-              repeatDelay: Math.random() * 8 + 5,
+              repeatDelay,
               ease: "linear",
             }}
           >
@@ -35,10 +53,10 @@ export const Meteors = ({ number = 16 }: { number?: number }) => {
                 opacity: [0, 0.8, 0.8, 0],
               }}
               transition={{
-                duration: duration,
-                delay: delay,
+                duration,
+                delay,
                 repeat: Infinity,
-                repeatDelay: Math.random() * 8 + 5,
+                repeatDelay,
                 times: [0, 0.15, 0.7, 1],
               }}
             >
