@@ -77,6 +77,8 @@ const RULES: Rule[] = [
 
 export async function mockAnalyze(
   content: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _filename?: string,
 ): Promise<AnalysisResult> {
   const issues: AnalysisIssue[] = RULES
     .filter((r) => r.test(content))
