@@ -81,7 +81,7 @@ export async function analyze(
 ): Promise<AnalysisResult> {
   // Unauthenticated → local rule-based analysis only
   if (!token) {
-    return mockAnalyze(configContent, filename);
+    return mockAnalyze(configContent);
   }
 
   // Authenticated → full backend AI analysis
