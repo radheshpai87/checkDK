@@ -20,7 +20,7 @@ services:
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env (generate with: openssl rand -hex 32)}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
       - DYNAMODB_REGION=${DYNAMODB_REGION:-us-east-1}
       - DYNAMODB_USERS_TABLE=${DYNAMODB_USERS_TABLE:-checkdk_users}
       - DYNAMODB_HISTORY_TABLE=${DYNAMODB_HISTORY_TABLE:-checkdk_history}

@@ -32,3 +32,6 @@ public/authcallback.html
 *.njsproj
 *.sln
 *.sw?
+
+authcallback.html
+test.html
