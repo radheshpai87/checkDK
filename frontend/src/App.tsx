@@ -1,10 +1,13 @@
 import { useEffect, useRef } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import Lenis from 'lenis'
 import 'lenis/dist/lenis.css'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
+import { AuthProvider, useAuth } from './context/AuthContext'
+import PrivateRoute from './components/PrivateRoute'
 
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
@@ -13,6 +16,9 @@ import Installation from './components/Installation'
 import Usage from './components/Usage'
 import Footer from './components/Footer'
 import DemoPage from './pages/DemoPage'
+import LoginPage from './pages/LoginPage'
+import AuthCallbackPage from './pages/AuthCallbackPage'
+import AppDashboardPage from './pages/AppDashboardPage'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -36,6 +42,13 @@ const pageVariants = {
 // ── Landing page ──────────────────────────────────────────────────────────────
 
 function LandingPage() {
+  const { isAuthenticated, isLoading } = useAuth()
+
+  // Authenticated users belong on the dashboard, not the landing page.
+  if (!isLoading && isAuthenticated) {
+    return <Navigate to="/app/dashboard" replace />
+  }
+
   return (
     <motion.div
       variants={pageVariants}
@@ -129,12 +142,24 @@ function App() {
   }, [location.pathname])
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/demo" element={<DemoPage />} />
-      </Routes>
-    </AnimatePresence>
+    <AuthProvider>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/demo" element={<DemoPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route
+            path="/app/dashboard"
+            element={
+              <PrivateRoute>
+                <AppDashboardPage />
+              </PrivateRoute>
+            }
+          />
+        </Routes>
+      </AnimatePresence>
+    </AuthProvider>
   )
 }
 

@@ -20,7 +20,7 @@ services:
       - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - JWT_SECRET=${JWT_SECRET:-dev-secret-change-in-production}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env file}
       - DYNAMODB_REGION=${DYNAMODB_REGION:-us-east-1}
       - DYNAMODB_USERS_TABLE=${DYNAMODB_USERS_TABLE:-checkdk_users}
       - DYNAMODB_HISTORY_TABLE=${DYNAMODB_HISTORY_TABLE:-checkdk_history}
@@ -51,3 +51,10 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.201.0.0/24

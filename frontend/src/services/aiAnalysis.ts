@@ -2,7 +2,12 @@
 // services/aiAnalysis.ts
 // Proxies config audit requests to the checkDK backend API.
 // No LLM SDKs are imported – all inference runs server-side.
+//
+// Auth-aware: when a JWT token is supplied, calls the real backend with a
+// Bearer header. Without a token, delegates to the local rule-based analyzer.
 // ─────────────────────────────────────────────────────────────────────────────
+
+import { mockAnalyze } from '../lib/mockAnalyzer';
 
 export type IssueSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 export type AnalysisStatus = 'secure' | 'warning' | 'critical';
@@ -61,15 +66,33 @@ function getApiBase(): string {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
+/**
+ * Analyse a config file.
+ *
+ * - With `token`: calls the real backend `/analyze/playground` endpoint with
+ *   full AI-powered analysis (Bearer token in Authorization header).
+ * - Without `token`: runs the local rule-based analyzer instantly with no
+ *   network requests.
+ */
 export async function analyze(
   configContent: string,
   filename?: string,
+  token?: string | null,
 ): Promise<AnalysisResult> {
+  // Unauthenticated → local rule-based analysis only
+  if (!token) {
+    return mockAnalyze(configContent, filename);
+  }
+
+  // Authenticated → full backend AI analysis
   const url = `${getApiBase()}/analyze/playground`;
 
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
     body: JSON.stringify({ content: configContent, filename }),
   });
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 // ── Nav item definitions (route-aware) ───────────────────────────────────────
 
@@ -14,12 +15,18 @@ type NavItem = {
   demoHref: string;    // href used on the demo page
 };
 
-const NAV_ITEMS: NavItem[] = [
+const NAV_ITEMS_UNAUTHENTICATED: NavItem[] = [
   { label: 'Features', landingHref: '#features', demoHref: '/#features' },
   { label: 'Playground', landingHref: '/demo#playground', demoHref: '#playground' },
   { label: 'Install', landingHref: '#installation', demoHref: '/#installation' },
   { label: 'Usage', landingHref: '#usage', demoHref: '/#usage' },
-  { label: 'Dashboard', landingHref: '/demo#dashboard', demoHref: '#dashboard' },
+];
+
+const NAV_ITEMS_AUTHENTICATED: NavItem[] = [
+  { label: 'Features', landingHref: '#features', demoHref: '/#features' },
+  { label: 'Dashboard', landingHref: '/app/dashboard', demoHref: '/app/dashboard' },
+  { label: 'Install', landingHref: '#installation', demoHref: '/#installation' },
+  { label: 'Usage', landingHref: '#usage', demoHref: '/#usage' },
 ];
 
 const GITHUB_URL = "https://github.com/radheshpai87/checkDK";
@@ -29,9 +36,12 @@ const GITHUB_URL = "https://github.com/radheshpai87/checkDK";
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('');
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated, user, logout } = useAuth();
   const isDemo = location.pathname === '/demo';
+  const navItems = isAuthenticated ? NAV_ITEMS_AUTHENTICATED : NAV_ITEMS_UNAUTHENTICATED;
 
   // Active section tracking via IntersectionObserver
   useEffect(() => {
@@ -143,7 +153,7 @@ const Navbar = () => {
 
             {/* Desktop Nav Links */}
             <div className="hidden md:flex items-center gap-0.5 min-w-0 flex-shrink">
-              {NAV_ITEMS.map((item) => {
+              {navItems.map((item) => {
                 const href = getHref(item);
                 const isActive = getIsActive(item);
                 const isCrossRoute = href.startsWith('/');
@@ -189,7 +199,7 @@ const Navbar = () => {
               })}
             </div>
 
-            {/* GitHub + Hamburger */}
+            {/* GitHub + Auth + Hamburger */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <motion.a
                 href={GITHUB_URL}
@@ -204,6 +214,79 @@ const Navbar = () => {
                 </svg>
                 <span className="hidden lg:inline">GitHub</span>
               </motion.a>
+
+              {/* Auth area — desktop */}
+              {isAuthenticated && user ? (
+                <div className="relative hidden md:block">
+                  <motion.button
+                    onClick={() => setUserMenuOpen(o => !o)}
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-slate-800/50 border border-slate-700/50 hover:border-indigo-500/40 transition-all"
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt={user.name} className="w-5 h-5 rounded-full" />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-indigo-500/40 flex items-center justify-center text-[10px] font-bold text-indigo-200">
+                        {user.name?.[0]?.toUpperCase() ?? '?'}
+                      </div>
+                    )}
+                    <span className="text-slate-200 text-xs font-medium max-w-[90px] truncate hidden lg:block">{user.name}</span>
+                    <svg className={`w-3 h-3 text-slate-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </motion.button>
+
+                  <AnimatePresence>
+                    {userMenuOpen && (
+                      <>
+                        <div className="fixed inset-0 z-30" onClick={() => setUserMenuOpen(false)} />
+                        <motion.div
+                          initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 mt-2 w-48 z-40 rounded-xl bg-slate-900 border border-slate-700/60 shadow-2xl overflow-hidden"
+                        >
+                          <div className="px-4 py-2.5 border-b border-slate-800">
+                            <p className="text-white text-xs font-medium truncate">{user.name}</p>
+                            <p className="text-slate-500 text-[10px] truncate">{user.email}</p>
+                          </div>
+                          <div className="p-1.5 space-y-0.5">
+                            <Link
+                              to="/app/dashboard"
+                              onClick={() => setUserMenuOpen(false)}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2zM14 13a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1h-4a1 1 0 01-1-1v-5z" />
+                              </svg>
+                              Dashboard
+                            </Link>
+                            <button
+                              onClick={() => { logout(); setUserMenuOpen(false); navigate('/'); }}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                              </svg>
+                              Sign out
+                            </button>
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="hidden md:block">
+                  <Link
+                    to="/login"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-all"
+                  >
+                    Sign In
+                  </Link>
+                </motion.div>
+              )}
 
               {/* Hamburger — mobile only */}
               <motion.button
@@ -260,7 +343,7 @@ const Navbar = () => {
                   </Link>
                 )}
 
-                {NAV_ITEMS.map((item, i) => {
+                {navItems.map((item, i) => {
                   const href = getHref(item);
                   const isActive = getIsActive(item);
                   const isCrossRoute = href.startsWith('/');
@@ -304,6 +387,42 @@ const Navbar = () => {
                     </svg>
                     GitHub
                   </a>
+
+                  {/* Mobile auth */}
+                  {isAuthenticated && user ? (
+                    <>
+                      <Link
+                        to="/app/dashboard"
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl text-indigo-300 hover:bg-indigo-500/10 transition-colors font-medium"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2zM14 13a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1h-4a1 1 0 01-1-1v-5z" />
+                        </svg>
+                        Dashboard
+                      </Link>
+                      <button
+                        onClick={() => { logout(); setMobileOpen(false); navigate('/'); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-colors font-medium"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Sign out
+                      </button>
+                    </>
+                  ) : (
+                    <Link
+                      to="/login"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 font-medium hover:bg-indigo-600/30 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                      </svg>
+                      Sign In
+                    </Link>
+                  )}
                 </div>
               </div>
             </motion.div>
