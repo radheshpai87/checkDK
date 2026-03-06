@@ -26,7 +26,7 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
 
       - name: Install dependencies
-        run: pip install -e ".[api,ml]" pytest
+        run: pip install -e ".[api,ml]" pytest pytest-cov
 
       - name: Run tests
         run: pytest tests/ -v --tb=short
