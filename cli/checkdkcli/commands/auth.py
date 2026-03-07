@@ -144,9 +144,9 @@ def login_cmd() -> None:
 
     _console.print(Panel(
         f"[bold green]Logged in successfully![/]\n\n"
-        f"  Name:     {user.get('name', '?\')}\n"
-        f"  Email:    {user.get('email', '?\')}\n"
-        f"  Provider: {user.get('provider', '?\')}\n\n"
+        f"  Name:     {user.get('name', '?')}\n"
+        f"  Email:    {user.get('email', '?')}\n"
+        f"  Provider: {user.get('provider', '?')}\n\n"
         f"[dim]Token saved to {_ENV_FILE}[/]",
         border_style="green",
     ))
