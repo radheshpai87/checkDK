@@ -59,6 +59,15 @@ HIDDEN_IMPORTS = [
     "websocket._socket",
     "websocket._ssl_compat",
     "websocket._utils",
+    # stdlib modules used by auth.py / chaos.py / monitor.py that
+    # PyInstaller can miss (especially webbrowser with its dynamic
+    # browser-backend imports)
+    "webbrowser",
+    "http",
+    "http.server",
+    "socket",
+    "subprocess",
+    "threading",
 ]
 
 a = Analysis(
