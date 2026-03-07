@@ -1,6 +1,6 @@
 {
   "name": "@checkdk/cli",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "AI-powered Docker/Kubernetes issue detector and pod failure predictor",
   "license": "MIT",
   "repository": {
@@ -27,10 +27,10 @@
     "node": ">=14"
   },
   "optionalDependencies": {
-    "@checkdk/cli-linux-x64": "0.2.8",
-    "@checkdk/cli-linux-arm64": "0.2.8",
-    "@checkdk/cli-darwin-x64": "0.2.8",
-    "@checkdk/cli-darwin-arm64": "0.2.8",
-    "@checkdk/cli-win32-x64": "0.2.8"
+    "@checkdk/cli-linux-x64": "0.2.9",
+    "@checkdk/cli-linux-arm64": "0.2.9",
+    "@checkdk/cli-darwin-x64": "0.2.9",
+    "@checkdk/cli-darwin-arm64": "0.2.9",
+    "@checkdk/cli-win32-x64": "0.2.9"
   }
 }
