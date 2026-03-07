@@ -68,5 +68,5 @@ handling work exactly as if you invoked the binary directly.
 ## Links
 
 - Documentation: <https://checkdk.app/docs>
-- Issues: <https://github.com/your-org/checkDK_AWS/issues>
+- Issues: <https://github.com/radheshpai87/checkDK/issues>
 - PyPI: <https://pypi.org/project/checkdk-cli/>

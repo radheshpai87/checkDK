@@ -5,11 +5,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/checkDK_AWS"
+    "url": "https://github.com/radheshpai87/checkDK"
   },
   "os": ["linux"],
   "cpu": ["arm64"],
   "files": [
-    "bin/"
+    "bin/",
+    "README.md"
   ]
 }
