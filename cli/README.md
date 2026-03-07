@@ -1,71 +1,114 @@
 # checkDK CLI
 
-Thin CLI tool that wraps `docker` and `kubectl` commands with pre-execution
-analysis, and provides a `predict` command for pod failure detection.
+AI-powered CLI for Docker and Kubernetes — wraps `docker` and `kubectl` with
+pre-execution analysis, real-time monitoring, chaos testing, and pod failure
+prediction.
 
-All analysis is delegated to the **checkDK backend API** running in Docker.
-The CLI itself has no ML or LLM dependencies — it is just an HTTP client with
-a rich terminal UI.
-
----
-
-## Quick start
-
-```bash
-# 1. Clone and enter the cli folder
-cd cli
-
-# 2. Run the setup script (creates .venv + installs the package)
-bash setup.sh
-
-# 3. Activate the virtual environment
-source .venv/bin/activate
-
-# 4. Point at the backend (start it first with docker compose)
-export CHECKDK_API_URL=http://localhost:8000
-# — or save it permanently:
-checkdk init
-```
+All analysis is delegated to the **checkDK backend API** at
+[checkdk.app](https://checkdk.app). The CLI itself has no ML or LLM
+dependencies — it is a thin HTTP/WebSocket client with a rich terminal UI.
 
 ---
 
-## Start the backend first
+## Install
 
 ```bash
-# From the repo root
-cp .env.example .env          # add GROQ_API_KEY / GEMINI_API_KEY
-docker compose up --build     # starts backend on :8000, frontend on :3000
+# Recommended — isolated install, checkdk on PATH globally
+pipx install checkdk-cli
+
+# Or with plain pip
+pip install checkdk-cli
 ```
+
+The `checkdk` command is available immediately after install.
+No configuration required — the CLI talks to `https://checkdk.app/api` by default.
 
 ---
 
 ## Commands
 
-| Command | Description |
-|---|---|
-| `checkdk init` | Save API URL + keys to `~/.checkdk/.env` |
-| `checkdk docker compose up -d` | Analyse `docker-compose.yml`, then run the command |
-| `checkdk docker compose up --dry-run` | Analyse only, do not execute |
-| `checkdk kubectl apply -f deploy.yaml` | Analyse Kubernetes manifest, then apply |
-| `checkdk predict --cpu 93 --memory 91` | Predict pod failure risk |
-| `checkdk predict --cpu 93 --memory 91 --no-ai` | ML prediction only, skip LLM |
+### Authentication
 
-### Predict options
+```bash
+checkdk auth login       # open browser → paste JWT token → saved to ~/.checkdk/.env
+checkdk auth logout      # remove stored token
+checkdk auth whoami      # show current logged-in user
+```
 
+### Docker
+
+```bash
+checkdk docker compose up -d              # analyse docker-compose.yml, then run
+checkdk docker compose up --dry-run       # analyse only, do not execute
+checkdk docker -f custom.yml compose up   # specify a compose file explicitly
 ```
-  --cpu            CPU usage % (required)
-  --memory         Memory usage % (required)
-  --disk           Disk usage % (default 50)
-  --latency        Network latency ms (default 10)
-  --restarts       Restart count (default 0)
-  --probe-failures Probe failure count (default 0)
-  --cpu-pressure   Node CPU pressure 0/1 (default 0)
-  --mem-pressure   Node memory pressure 0/1 (default 0)
-  --age            Pod age in minutes (default 60)
-  --service        Service/pod name (optional label)
-  --platform       docker | kubernetes (default docker)
-  --no-ai          Skip LLM analysis
+
+### Kubernetes
+
+```bash
+checkdk kubectl apply -f deploy.yaml      # analyse manifest, then apply
+checkdk kubectl apply -f ./manifests/     # analyse an entire directory of YAMLs
 ```
+
+### Playground
+
+```bash
+checkdk playground -f docker-compose.yml  # full AI + rule-based analysis
+checkdk playground -f k8s/deploy.yaml
+checkdk playground -f docker-compose.yml --json   # raw JSON output
+```
+
+### Predict
+
+```bash
+checkdk predict --cpu 93 --memory 91
+checkdk predict --cpu 93 --memory 91 --no-ai            # ML only, skip LLM
+checkdk predict --cpu 93 --memory 91 --restarts 3 \
+                --probe-failures 2 --cpu-pressure 1 \
+                --mem-pressure 1 --platform kubernetes
+checkdk predict --cpu 85 --memory 70 --json             # CI/scripting output
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--cpu` | required | CPU usage % |
+| `--memory` | required | Memory usage % |
+| `--disk` | 50 | Disk usage % |
+| `--latency` | 10 | Network latency ms |
+| `--restarts` | 0 | Container restart count |
+| `--probe-failures` | 0 | Liveness/readiness probe failures |
+| `--cpu-pressure` | 0 | Node CPU pressure (0 or 1) |
+| `--mem-pressure` | 0 | Node memory pressure (0 or 1) |
+| `--age` | 60 | Pod age in minutes |
+| `--service` | — | Service/pod name (label only) |
+| `--platform` | docker | `docker` or `kubernetes` |
+| `--no-ai` | — | Skip LLM, return ML result only |
+| `--json` | — | Raw JSON output for scripting |
+
+### Monitor (real-time)
+
+Streams live metrics to the API over WebSocket and displays failure risk in a
+Rich Live table. Requires the container/pod to be running.
+
+```bash
+checkdk monitor docker my-container
+checkdk monitor docker my-container --duration 120 --interval 3
+checkdk monitor k8s my-pod -n production
+```
+
+### Chaos
+
+Injects CPU/memory/disk/network stress or kills pods. Requires `stress-ng`
+installed inside the container/pod image.
+
+```bash
+checkdk chaos docker my-container --experiment cpu --duration 60
+checkdk chaos docker my-db --experiment memory --yes      # skip confirmation
+checkdk chaos k8s my-pod -n production --experiment cpu
+checkdk chaos k8s my-pod --experiment pod-kill --yes
+```
+
+Experiments: `cpu`, `memory`, `disk`, `network`, `pod-kill` (k8s only).
 
 ---
 
@@ -73,21 +116,33 @@ docker compose up --build     # starts backend on :8000, frontend on :3000
 
 | Variable | Default | Description |
 |---|---|---|
-| `CHECKDK_API_URL` | `http://localhost:8000` | Backend API base URL |
+| `CHECKDK_API_URL` | `https://checkdk.app/api` | Backend API base URL |
+| `CHECKDK_TOKEN` | — | JWT auth token (set by `checkdk auth login`) |
 
 The CLI auto-loads `~/.checkdk/.env` and `./.env` on startup.
 
 ---
 
-## Development
+## Local development
 
 ```bash
-# Install with dev extras
-pip install -e ".[dev]"
+# From repo root — start backend on :8000
+cp .env.example .env
+docker compose up --build
 
+# Point CLI at local backend
+export CHECKDK_API_URL=http://localhost:8000
+
+# Install CLI from source
+cd cli
+pip install -e ".[dev]"
+```
+
+```bash
 # Run tests
 pytest
 
 # Lint
 ruff check .
 ```
+

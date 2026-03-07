@@ -36,6 +36,11 @@ def _load_dotenv() -> None:
         pass
 
 
+# ── Commands that work without being logged in ────────────────────────────────
+# Everything else requires a stored JWT (checkdk auth login).
+_PUBLIC_COMMANDS = {"auth", "init"}
+
+
 # ── CLI group ─────────────────────────────────────────────────────────────────
 
 @click.group(invoke_without_command=True)
@@ -45,19 +50,31 @@ def _load_dotenv() -> None:
 def cli(ctx: click.Context, debug: bool = False) -> None:
     """checkDK – AI-powered Docker/Kubernetes issue detector and fixer.
 
-    Delegates all analysis and prediction to the checkDK backend API.
-    Set CHECKDK_API_URL to point to your running backend instance.
+    Analyse configs, predict failures, monitor containers, and run chaos
+    experiments — all powered by the checkDK backend API.
 
     \b
-    Quick start:
-        export CHECKDK_API_URL=http://localhost:8000
-        checkdk docker compose up -d
-        checkdk kubectl apply -f deployment.yaml
+    Get started:
+        checkdk auth login          # sign in with GitHub or Google
         checkdk predict --cpu 93 --memory 91
+        checkdk docker compose up -d
+        checkdk playground -f docker-compose.yml
     """
     _load_dotenv()
     ctx.ensure_object(dict)
     ctx.obj["debug"] = debug
+
+    sub = ctx.invoked_subcommand
+    if sub and sub not in _PUBLIC_COMMANDS:
+        from .client import get_stored_token
+        if not get_stored_token():
+            console.print(
+                "\n[bold red]Not logged in.[/]\n\n"
+                "Run [bold cyan]checkdk auth login[/] to authenticate with your\n"
+                "GitHub or Google account, then try again.\n"
+            )
+            sys.exit(1)
+
     if ctx.invoked_subcommand is None:
         console.print(
             f"\n[bold cyan]checkDK[/] v{__version__}\n"
