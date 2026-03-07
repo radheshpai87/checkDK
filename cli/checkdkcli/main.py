@@ -99,13 +99,15 @@ cli.add_command(chaos_cmd)
 
 def main() -> None:
     try:
-        cli(standalone_mode=True)
-    except KeyboardInterrupt:
+        cli(standalone_mode=False, obj={})
+    except (KeyboardInterrupt, click.exceptions.Abort):
         console.print("\n[yellow]Cancelled.[/]")
         sys.exit(130)
+    except SystemExit:
+        raise
     except Exception as exc:
         console.print(f"\n[bold red]Error:[/] {exc}")
-        if "--debug" in sys.argv or getattr(getattr(cli, 'ctx', None), 'obj', {}).get('debug'):
+        if "--debug" in sys.argv:
             raise
         sys.exit(1)
 
