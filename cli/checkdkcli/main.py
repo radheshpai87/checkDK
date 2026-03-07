@@ -9,10 +9,14 @@ import click
 from rich.console import Console
 
 from . import __version__
-from .commands.init    import init_cmd
-from .commands.docker  import docker_cmd
-from .commands.kubectl import kubectl_cmd
-from .commands.predict import predict_cmd
+from .commands.init       import init_cmd
+from .commands.docker     import docker_cmd
+from .commands.kubectl    import kubectl_cmd
+from .commands.predict    import predict_cmd
+from .commands.playground import playground_cmd
+from .commands.auth       import auth_cmd
+from .commands.monitor    import monitor_cmd
+from .commands.chaos      import chaos_cmd
 
 console = Console()
 
@@ -68,6 +72,10 @@ cli.add_command(init_cmd)
 cli.add_command(docker_cmd)
 cli.add_command(kubectl_cmd)
 cli.add_command(predict_cmd)
+cli.add_command(playground_cmd)
+cli.add_command(auth_cmd)
+cli.add_command(monitor_cmd)
+cli.add_command(chaos_cmd)
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

@@ -115,6 +115,11 @@ class RFPredictor:
                 return None
         return cls._instance
 
+    # Lower threshold: default sklearn 0.5 is too conservative on imbalanced data.
+    # 0.30 gives a better balance between false-negatives and false-positives for
+    # operational use (missing a real failure is worse than a false alarm).
+    FAILURE_THRESHOLD: float = 0.30
+
     def predict(self, metrics: PodMetrics) -> PredictionResult:
         """Run prediction on a PodMetrics instance."""
         row = self._np.array(
@@ -122,8 +127,8 @@ class RFPredictor:
             dtype=float
         )
         row_scaled = self._scaler.transform(row)
-        pred  = int(self._model.predict(row_scaled)[0])
         proba = float(self._model.predict_proba(row_scaled)[0][1])
+        pred  = int(proba >= self.FAILURE_THRESHOLD)
         return PredictionResult(
             prediction=pred,
             label="failure" if pred == 1 else "healthy",

@@ -248,6 +248,23 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     }
 
 
+@router.post("/auth/cli-token", tags=["Auth"])
+async def cli_token_validate(current_user: dict = Depends(get_current_user)):
+    """Validate a JWT issued by OAuth and return the user profile.
+
+    Used by ``checkdk auth login`` to verify a pasted token before saving it
+    to ``~/.checkdk/.env``.  The token must be supplied as a Bearer token in
+    the ``Authorization`` header.
+    """
+    return {
+        "userId": current_user["sub"],
+        "email": current_user.get("email"),
+        "name": current_user.get("name"),
+        "avatarUrl": current_user.get("avatarUrl"),
+        "provider": current_user.get("provider"),
+    }
+
+
 @router.get("/user/history", tags=["User"])
 async def get_user_history(current_user: dict = Depends(get_current_user)):
     """Return the user's last 10 analysis history items."""

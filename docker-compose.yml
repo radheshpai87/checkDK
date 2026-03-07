@@ -3,8 +3,8 @@ services:
   # ── Backend (FastAPI + ML + LLM) ─────────────────────────────────────────
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .                      # repo root so dataset is accessible
+      dockerfile: backend/Dockerfile
     image: checkdk-backend:latest
     ports:
       - "8000:8000"
