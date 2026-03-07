@@ -40,6 +40,11 @@ HIDDEN_IMPORTS = [
     "urllib3",
     "urllib3.contrib",
     "charset_normalizer",
+    "charset_normalizer.md",
+    "charset_normalizer.models",
+    "charset_normalizer.api",
+    "charset_normalizer.legacy",
+    "charset_normalizer.cd",
     "certifi",
     "idna",
     # pyyaml
@@ -71,8 +76,8 @@ HIDDEN_IMPORTS = [
 ]
 
 a = Analysis(
-    ["checkdkcli/main.py"],
-    pathex=["checkdkcli"],
+    ["bootstrap.py"],
+    pathex=["."],
     binaries=[],
     datas=[],
     hiddenimports=HIDDEN_IMPORTS,
