@@ -66,33 +66,6 @@ jobs:
           name: binary-linux-arm64
           path: cli/dist/checkdk
 
-  build-darwin-x64:
-    name: Build · darwin-x64
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          architecture: x64 # x86_64 Python via Rosetta 2 → produces x86_64 binary
-
-      - name: Install CLI dependencies and PyInstaller
-        working-directory: cli
-        run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller
-          pip install -e .
-
-      - name: Build standalone binary
-        working-directory: cli
-        run: pyinstaller checkdk.spec --distpath dist/
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: binary-darwin-x64
-          path: cli/dist/checkdk
-
   build-darwin-arm64:
     name: Build · darwin-arm64
     runs-on: macos-14
@@ -155,7 +128,6 @@ jobs:
     needs:
       - build-linux-x64
       - build-linux-arm64
-      - build-darwin-x64
       - build-darwin-arm64
       - build-win32-x64
 
@@ -181,11 +153,6 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: binary-darwin-x64
-          path: npm/@checkdk/cli-darwin-x64/bin/
-
-      - uses: actions/download-artifact@v4
-        with:
           name: binary-darwin-arm64
           path: npm/@checkdk/cli-darwin-arm64/bin/
 
@@ -200,7 +167,6 @@ jobs:
         run: |
           chmod +x npm/@checkdk/cli-linux-x64/bin/checkdk
           chmod +x npm/@checkdk/cli-linux-arm64/bin/checkdk
-          chmod +x npm/@checkdk/cli-darwin-x64/bin/checkdk
           chmod +x npm/@checkdk/cli-darwin-arm64/bin/checkdk
 
       # ── Remove .gitkeep placeholders before packing ───────────────────────
@@ -218,7 +184,6 @@ jobs:
             npm/@checkdk/cli \
             npm/@checkdk/cli-linux-x64 \
             npm/@checkdk/cli-linux-arm64 \
-            npm/@checkdk/cli-darwin-x64 \
             npm/@checkdk/cli-darwin-arm64 \
             npm/@checkdk/cli-win32-x64; do
             node -e "
@@ -247,12 +212,6 @@ jobs:
 
       - name: Publish @checkdk/cli-linux-arm64
         working-directory: npm/@checkdk/cli-linux-arm64
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @checkdk/cli-darwin-x64
-        working-directory: npm/@checkdk/cli-darwin-x64
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
