@@ -144,3 +144,92 @@ def display_predict_result(resp: dict, service: str | None, platform: str) -> No
             ai_table.add_row(f"  {i}.", rec)
 
     console.print(Panel(ai_table, title="💡 LLM Health Assessment", border_style="cyan"))
+
+
+# ── Playground display ────────────────────────────────────────────────────────
+
+def display_playground_result(result: dict, file_path: str = "") -> None:
+    """Render a PlaygroundAnalysisResult dict returned by /analyze/playground."""
+    score  = result.get("score", 0)
+    status = result.get("status", "unknown")
+    issues = result.get("issues", [])
+    fixes  = result.get("fixes", [])
+
+    # Score colour
+    if score >= 80:
+        score_col = "green"
+    elif score >= 50:
+        score_col = "yellow"
+    else:
+        score_col = "red"
+
+    status_badge = {
+        "healthy":  "[bold green]● HEALTHY[/]",
+        "warning":  "[bold yellow]● WARNING[/]",
+        "critical": "[bold red]● CRITICAL[/]",
+    }.get(status.lower(), f"[white]{status.upper()}[/]")
+
+    provider = result.get("ai_provider", "")
+    header_rows = Table.grid(padding=(0, 2))
+    header_rows.add_column(style="bold")
+    header_rows.add_column()
+    if file_path:
+        header_rows.add_row("File:", file_path)
+    header_rows.add_row("Status:", status_badge)
+    header_rows.add_row("Score:", f"[bold {score_col}]{score}/100[/]")
+    if provider:
+        header_rows.add_row("AI Provider:", f"[dim]{provider}[/]")
+    console.print(Panel(header_rows, title="checkDK Playground", border_style=score_col))
+
+    # Issues
+    if not issues:
+        console.print("[bold green]✓ No issues found![/]")
+        return
+
+    issue_pos: dict[int, int] = {id(i): n for n, i in enumerate(issues)}
+
+    for sev, colour, label in [
+        ("critical", "red",    "✗ Critical Issues"),
+        ("warning",  "yellow", "⚠ Warnings"),
+        ("info",     "blue",   "ℹ Info"),
+    ]:
+        group = [i for i in issues if i.get("severity") == sev]
+        if not group:
+            continue
+        console.print(f"\n[bold {colour}]{label}:[/]")
+        for idx, issue in enumerate(group, 1):
+            console.print(f"\n[bold {colour}]{idx}.[/] {issue.get('message', '?')}")
+            if issue.get("service_name"):
+                console.print(f"   [dim]Service: {issue['service_name']}[/]")
+            n = issue_pos.get(id(issue), -1)
+            fix = fixes[n] if 0 <= n < len(fixes) else None
+            if fix:
+                steps = fix.get("steps") or []
+                if fix.get("explanation"):
+                    console.print(f"   [bold green]💡[/] {fix['explanation']}")
+                for step in steps:
+                    console.print(f"   [cyan]→[/] {step}")
+
+    # AI highlights
+    highlights = result.get("highlights", [])
+    if highlights:
+        console.print("\n[bold cyan]💡 AI Highlights:[/]")
+        for hl in highlights:
+            console.print(f"  [cyan]•[/] {hl}")
+
+
+# ── Monitor display helper ────────────────────────────────────────────────────
+
+def display_monitor_result(frame: dict, history: list[dict]) -> None:
+    """Render a single real-time monitor prediction frame inline (non-Live mode)."""
+    label = frame.get("label", "unknown")
+    conf  = frame.get("confidence", 0.0)
+    col   = {"healthy": "green", "warning": "yellow", "critical": "red"}.get(
+        label.lower(), "white"
+    )
+    console.print(
+        f"[dim]{frame.get('ts', '')}[/]  "
+        f"CPU: [cyan]{frame.get('cpu', 0):.1f}%[/]  "
+        f"MEM: [cyan]{frame.get('mem', 0):.1f}%[/]  "
+        f"Risk: [bold {col}]{label}[/] ({conf:.2f})"
+    )
