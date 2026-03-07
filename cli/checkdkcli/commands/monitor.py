@@ -14,6 +14,8 @@ from rich.live import Live
 from rich.table import Table
 from rich.text import Text
 
+from ..client import get_ws_url
+
 _console = Console()
 
 
@@ -95,9 +97,7 @@ def monitor_cmd() -> None:
               help="Stop after N seconds (0 = run until Ctrl-C)")
 @click.option("--interval", default=5, show_default=True, type=int,
               help="Polling interval in seconds")
-@click.option("--api-url", envvar="CHECKDK_API_URL", default="https://checkdk.app/api",
-              help="Backend base URL")
-def monitor_docker(container: str, duration: int, interval: int, api_url: str) -> None:
+def monitor_docker(container: str, duration: int, interval: int) -> None:
     """Stream live Docker container metrics and predict failure risk.
 
     \b
@@ -114,7 +114,7 @@ def monitor_docker(container: str, duration: int, interval: int, api_url: str) -
 
     import websocket as ws_lib
 
-    ws_url = api_url.replace("http://", "ws://").replace("https://", "wss://") + "/ws/monitor"
+    ws_url = get_ws_url() + "/ws/monitor"
     history: list[dict] = []
     start = time.time()
 
@@ -168,8 +168,7 @@ def monitor_docker(container: str, duration: int, interval: int, api_url: str) -
 @click.option("--namespace", "-n", default="default", show_default=True)
 @click.option("--duration", default=0, type=int, help="Stop after N seconds (0 = Ctrl-C)")
 @click.option("--interval", default=5, show_default=True, type=int)
-@click.option("--api-url", envvar="CHECKDK_API_URL", default="https://checkdk.app/api")
-def monitor_k8s(pod: str, namespace: str, duration: int, interval: int, api_url: str) -> None:
+def monitor_k8s(pod: str, namespace: str, duration: int, interval: int) -> None:
     """Stream live Kubernetes pod metrics and predict failure risk.
 
     \b
@@ -185,7 +184,7 @@ def monitor_k8s(pod: str, namespace: str, duration: int, interval: int, api_url:
 
     import websocket as ws_lib
 
-    ws_url = api_url.replace("http://", "ws://").replace("https://", "wss://") + "/ws/monitor"
+    ws_url = get_ws_url() + "/ws/monitor"
     history: list[dict] = []
     start = time.time()
 
