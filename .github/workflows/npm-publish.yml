@@ -74,12 +74,13 @@ jobs:
 
   build-darwin-x64:
     name: Build · darwin-x64
-    runs-on: macos-13 # Intel runner
+    runs-on: macos-14 # Apple Silicon runner; builds x86_64 binary via Rosetta 2
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          architecture: x64 # installs x86_64 Python (runs under Rosetta 2)
       - name: Install dependencies + PyInstaller
         working-directory: cli
         run: |
