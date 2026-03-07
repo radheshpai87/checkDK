@@ -21,9 +21,10 @@ def get_api_url() -> str:
     Priority:
         1. $CHECKDK_API_URL environment variable
         2. ~/.checkdk/.env  (loaded by python-dotenv at startup)
-        3. Fallback to http://localhost:8000 so local dev works without config
+        3. Fallback to https://checkdk.app/api (production) — override with
+           CHECKDK_API_URL=http://localhost:8000 for local dev
     """
-    url = os.getenv("CHECKDK_API_URL", "http://localhost:8000").strip().rstrip("/")
+    url = os.getenv("CHECKDK_API_URL", "https://checkdk.app/api").strip().rstrip("/")
     return url
 
 

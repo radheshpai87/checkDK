@@ -95,7 +95,7 @@ def monitor_cmd() -> None:
               help="Stop after N seconds (0 = run until Ctrl-C)")
 @click.option("--interval", default=5, show_default=True, type=int,
               help="Polling interval in seconds")
-@click.option("--api-url", envvar="CHECKDK_API_URL", default="http://localhost:8000",
+@click.option("--api-url", envvar="CHECKDK_API_URL", default="https://checkdk.app/api",
               help="Backend base URL")
 def monitor_docker(container: str, duration: int, interval: int, api_url: str) -> None:
     """Stream live Docker container metrics and predict failure risk.
@@ -168,7 +168,7 @@ def monitor_docker(container: str, duration: int, interval: int, api_url: str) -
 @click.option("--namespace", "-n", default="default", show_default=True)
 @click.option("--duration", default=0, type=int, help="Stop after N seconds (0 = Ctrl-C)")
 @click.option("--interval", default=5, show_default=True, type=int)
-@click.option("--api-url", envvar="CHECKDK_API_URL", default="http://localhost:8000")
+@click.option("--api-url", envvar="CHECKDK_API_URL", default="https://checkdk.app/api")
 def monitor_k8s(pod: str, namespace: str, duration: int, interval: int, api_url: str) -> None:
     """Stream live Kubernetes pod metrics and predict failure risk.
 
