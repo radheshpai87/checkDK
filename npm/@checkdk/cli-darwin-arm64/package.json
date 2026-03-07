@@ -1,6 +1,6 @@
 {
   "name": "@checkdk/cli-darwin-arm64",
-  "version": "0.2.5",
+  "version": "0.2.8",
   "description": "macOS arm64 (Apple Silicon) binary for @checkdk/cli",
   "license": "MIT",
   "repository": {

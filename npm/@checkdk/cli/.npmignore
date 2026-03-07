@@ -1,2 +1,12 @@
-# Files only needed during local development, not in the published package
+# Exclude Python build artifacts and development files from the npm package
+__pycache__/
+*.py
+*.pyc
+*.pyo
+*.spec
+dist/
+build/
+*.egg-info/
+.env
+.env.*
 .gitkeep
