@@ -21,11 +21,33 @@ def get_api_url() -> str:
     Priority:
         1. $CHECKDK_API_URL environment variable
         2. ~/.checkdk/.env  (loaded by python-dotenv at startup)
-        3. Fallback to https://checkdk.app/api (production) — override with
-           CHECKDK_API_URL=http://localhost:8000 for local dev
+        3. Fallback to https://checkdk.app/api (production)
     """
     url = os.getenv("CHECKDK_API_URL", "https://checkdk.app/api").strip().rstrip("/")
     return url
+
+
+def get_ws_url() -> str:
+    """Return the WebSocket base URL for real-time monitoring.
+
+    CloudFront does not support WebSocket upgrades on the free plan, so the
+    WebSocket connection goes directly to App Runner instead of via checkdk.app.
+
+    Priority:
+        1. $CHECKDK_WS_URL environment variable
+        2. ~/.checkdk/.env  (CHECKDK_WS_URL=...)
+        3. Fallback to the App Runner service URL (wss://)
+    """
+    stored = os.getenv("CHECKDK_WS_URL")
+    if stored:
+        return stored.strip().rstrip("/")
+    env_file = Path.home() / ".checkdk" / ".env"
+    if env_file.exists():
+        for line in env_file.read_text().splitlines():
+            if line.startswith("CHECKDK_WS_URL="):
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    # Direct App Runner URL — bypasses CloudFront which blocks WebSocket
+    return "wss://m7fijvmhiq.us-east-1.awsapprunner.com"
 
 
 def get_stored_token() -> Optional[str]:

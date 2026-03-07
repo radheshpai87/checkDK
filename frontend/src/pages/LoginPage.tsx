@@ -22,10 +22,14 @@ function getApiBase(): string {
 }
 
 function signInWithGitHub() {
+  const cliCallback = new URLSearchParams(window.location.search).get('cli_callback');
+  if (cliCallback) sessionStorage.setItem('checkdk_cli_callback', cliCallback);
   window.location.href = `${getApiBase()}/auth/github`;
 }
 
 function signInWithGoogle() {
+  const cliCallback = new URLSearchParams(window.location.search).get('cli_callback');
+  if (cliCallback) sessionStorage.setItem('checkdk_cli_callback', cliCallback);
   window.location.href = `${getApiBase()}/auth/google`;
 }
 

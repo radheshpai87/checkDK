@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 import os
+import socket
 import sys
+import threading
+import time
+import urllib.parse
 import webbrowser
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 import click
@@ -34,6 +39,62 @@ def _remove_token() -> None:
     _ENV_FILE.write_text("\n".join(lines) + "\n")
 
 
+def _find_free_port() -> int:
+    """Return an available localhost port."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def _wait_for_token(port: int, timeout: int = 120) -> "str | None":
+    """Start a temporary HTTP server on localhost and wait for the OAuth callback."""
+    received: dict = {"token": None}
+    server_ready = threading.Event()
+
+    class _Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            parsed = urllib.parse.urlparse(self.path)
+            params = urllib.parse.parse_qs(parsed.query)
+            token = (params.get("token") or [None])[0]
+            received["token"] = token
+
+            if token:
+                body = (
+                    b"<html><body style=\"font-family:sans-serif;text-align:center;"
+                    b"margin-top:10vh;background:#0f172a;color:#e2e8f0\">"
+                    b"<h2 style=\"color:#818cf8\">checkDK CLI</h2>"
+                    b"<p style=\"font-size:1.2rem\">You\'re logged in!"
+                    b" You can close this tab.</p></body></html>"
+                )
+            else:
+                body = b"<html><body>Authentication failed. Please try again.</body></html>"
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *_) -> None:
+            pass  # silence access logs
+
+    httpd = HTTPServer(("127.0.0.1", port), _Handler)
+    httpd.timeout = 1  # poll interval
+
+    def _serve() -> None:
+        server_ready.set()
+        deadline = time.time() + timeout
+        while received["token"] is None and time.time() < deadline:
+            httpd.handle_request()
+        httpd.server_close()
+
+    t = threading.Thread(target=_serve, daemon=True)
+    t.start()
+    server_ready.wait()
+    t.join(timeout + 2)
+    return received["token"]
+
+
 @click.group("auth")
 def auth_cmd() -> None:
     """Authentication - log in, log out, or check who you are."""
@@ -43,29 +104,39 @@ def auth_cmd() -> None:
 def login_cmd() -> None:
     """Log in to checkDK via GitHub or Google OAuth.
 
-    Opens the sign-in page in your browser, then prompts you to paste
-    the JWT token shown after a successful login.
+    Starts a local callback server, opens the sign-in page in your browser,
+    and receives the token automatically - no copy-pasting required.
     """
-    login_url = f"{get_api_url().replace('/api', '')}/login" if "/api" in get_api_url() else "https://checkdk.app/login"
-    _console.print(f"\n[bold]Opening sign-in page:[/] [cyan]{login_url}[/]")
-    _console.print("[dim]Sign in with GitHub or Google, then copy the token from the page.[/]\n")
+    port = _find_free_port()
+    callback_url = f"http://127.0.0.1:{port}/callback"
+
+    api = get_api_url()
+    base = api[: api.rindex("/api")] if "/api" in api else "https://checkdk.app"
+    encoded_cb = urllib.parse.quote(callback_url, safe="")
+    login_url = f"{base}/login?cli_callback={encoded_cb}"
+
+    _console.print("\n[bold]Opening browser for sign-in...[/]")
+    _console.print(
+        "  [dim]If the browser did not open, visit:[/]\n"
+        f"  [cyan]{login_url}[/]\n"
+    )
 
     try:
         webbrowser.open(login_url)
     except Exception:
-        _console.print("[yellow]Could not open browser automatically.[/]")
-        _console.print(f"Please visit: [cyan]{login_url}[/]\n")
+        _console.print(f"[yellow]Open this URL in your browser:[/] [cyan]{login_url}[/]\n")
 
-    token = _console.input("[bold]Paste your JWT token here:[/] ").strip()
+    with _console.status("[bold cyan]Waiting for authentication (2-min timeout)...[/]"):
+        token = _wait_for_token(port, timeout=120)
+
     if not token:
-        _console.print("[red]No token provided. Login cancelled.[/]")
+        _console.print("[bold red]Login timed out or was cancelled.[/]")
         sys.exit(1)
 
     try:
         user = validate_token(token)
     except Exception as exc:
         _console.print(f"[bold red]Token validation failed:[/] {exc}")
-        _console.print("[yellow]Make sure CHECKDK_API_URL points to a running backend.[/]")
         sys.exit(1)
 
     _save_token(token)
