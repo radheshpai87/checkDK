@@ -3,7 +3,7 @@ name: Publish Release
 on:
   push:
     tags:
-      - "v*.*.*"   # e.g. v0.2.0
+      - "cli-v*.*.*"   # e.g. cli-v0.2.6  (avoids conflicts with npm-v* tags)
 
 permissions:
   contents: write       # create GitHub Release
@@ -51,7 +51,7 @@ jobs:
 
       - name: Extract version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=${GITHUB_REF_NAME#cli-v}" >> "$GITHUB_OUTPUT"
 
       - name: Generate changelog (last 20 commits)
         id: changelog
