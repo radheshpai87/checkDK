@@ -17,7 +17,7 @@ const MODEL_COLORS: Record<string, string> = {
   lstm: '#38bdf8',
 };
 
-export default function ModelsTab() {
+export default function ModelsTab({ token }: { token: string }) {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export default function ModelsTab() {
   const [showFeatureImportance, setShowFeatureImportance] = useState(false);
 
   useEffect(() => {
-    fetchModels()
+    fetchModels(token)
       .then((data) => {
         setModels(data.models);
         // Pre-select first trained model
@@ -37,7 +37,7 @@ export default function ModelsTab() {
         setError(err instanceof Error ? err.message : 'Failed to load models.');
         setLoading(false);
       });
-  }, []);
+  }, [token]);
 
   if (loading) {
     return (
@@ -223,7 +223,7 @@ export default function ModelsTab() {
             Enter pod metrics to predict failure risk using a trained model.
           </p>
         </div>
-        <PredictionWidget availableModels={availableForPrediction} />
+        <PredictionWidget availableModels={availableForPrediction} token={token} />
       </section>
     </div>
   );

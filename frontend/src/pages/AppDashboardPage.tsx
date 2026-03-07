@@ -308,7 +308,7 @@ export default function AppDashboardPage() {
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                {tab === 'playground' ? '⚡ Playground' : tab === 'history' ? '📊 History' : '🤖 Models'}
+                {tab === 'playground' ? 'Playground' : tab === 'history' ? 'History' : 'Models'}
               </button>
             ))}
           </div>
@@ -385,7 +385,7 @@ export default function AppDashboardPage() {
                 </p>
               </div>
               <ErrorBoundary>
-                <ModelsTab />
+                <ModelsTab token={token!} />
               </ErrorBoundary>
             </motion.div>
           )}

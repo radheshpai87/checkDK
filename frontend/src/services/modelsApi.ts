@@ -67,8 +67,10 @@ export interface ModelPredictionResult {
 
 // ── API calls ─────────────────────────────────────────────────────────────────
 
-export async function fetchModels(): Promise<ModelsResponse> {
-  const res = await fetch(`${getApiBase()}/models`);
+export async function fetchModels(token: string): Promise<ModelsResponse> {
+  const res = await fetch(`${getApiBase()}/models`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Failed to load models (${res.status}): ${body}`);
@@ -79,10 +81,14 @@ export async function fetchModels(): Promise<ModelsResponse> {
 export async function predictWithModel(
   modelKey: string,
   metrics: PodMetricsInput,
+  token: string,
 ): Promise<ModelPredictionResult> {
   const res = await fetch(`${getApiBase()}/models/predict/${modelKey}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(metrics),
   });
   if (!res.ok) {

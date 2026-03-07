@@ -8,6 +8,7 @@ import { predictWithModel, type PodMetricsInput, type ModelPredictionResult } fr
 
 interface PredictionWidgetProps {
   availableModels: { key: string; display_name: string }[];
+  token: string;
 }
 
 const DEFAULT_METRICS: PodMetricsInput = {
@@ -44,12 +45,25 @@ const FIELDS: FieldDef[] = [
   { key: 'pod_age_minutes',     label: 'Pod Age',             unit: 'min', min: 0, max: 100000, step: 1,  isFloat: false },
 ];
 
-const RISK_STYLES: Record<string, { border: string; text: string; bg: string }> = {
-  healthy: { border: 'border-emerald-500/40', text: 'text-emerald-300', bg: 'bg-emerald-500/10' },
-  failure: { border: 'border-red-500/40',     text: 'text-red-300',     bg: 'bg-red-500/10' },
+// Styling is driven by P(failure), NOT the binary label.
+// This avoids the bucket where label='healthy' but risk is still 43% — showing green would be misleading.
+type RiskTier = 'critical' | 'high' | 'medium' | 'low';
+
+function getRiskTier(failureProb: number): RiskTier {
+  if (failureProb >= 0.75) return 'critical';
+  if (failureProb >= 0.5)  return 'high';
+  if (failureProb >= 0.25) return 'medium';
+  return 'low';
+}
+
+const RISK_STYLES: Record<RiskTier, { border: string; text: string; bg: string; barColor: string; riskLabel: string }> = {
+  critical: { border: 'border-red-500/50',    text: 'text-red-300',    bg: 'bg-red-500/10',    barColor: '#f87171', riskLabel: 'Critical' },
+  high:     { border: 'border-orange-500/50', text: 'text-orange-300', bg: 'bg-orange-500/10', barColor: '#fb923c', riskLabel: 'High' },
+  medium:   { border: 'border-amber-500/50',  text: 'text-amber-300',  bg: 'bg-amber-500/10',  barColor: '#facc15', riskLabel: 'Medium' },
+  low:      { border: 'border-emerald-500/40',text: 'text-emerald-300',bg: 'bg-emerald-500/10',barColor: '#34d399', riskLabel: 'Low' },
 };
 
-export default function PredictionWidget({ availableModels }: PredictionWidgetProps) {
+export default function PredictionWidget({ availableModels, token }: PredictionWidgetProps) {
   const [selectedModel, setSelectedModel] = useState(availableModels[0]?.key ?? 'random_forest');
   const [metrics, setMetrics] = useState<PodMetricsInput>(DEFAULT_METRICS);
   const [result, setResult] = useState<ModelPredictionResult | null>(null);
@@ -88,7 +102,7 @@ export default function PredictionWidget({ availableModels }: PredictionWidgetPr
     setError(null);
     setResult(null);
     try {
-      const res = await predictWithModel(selectedModel, metrics);
+      const res = await predictWithModel(selectedModel, metrics, token);
       setResult(res);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Prediction failed.');
@@ -97,7 +111,14 @@ export default function PredictionWidget({ availableModels }: PredictionWidgetPr
     }
   };
 
-  const styles = result ? (RISK_STYLES[result.label] ?? RISK_STYLES.healthy) : null;
+  // Derive all result display values outside JSX — no IIFE anti-pattern
+  const failureProb = result ? result.confidence : 0;
+  const riskTier = result ? getRiskTier(failureProb) : null;
+  const riskStyles = riskTier ? RISK_STYLES[riskTier] : null;
+  // Label confidence = model's certainty in its own binary prediction
+  const labelConfidence = result
+    ? (result.label === 'failure' ? failureProb : 1 - failureProb)
+    : 0;
 
   return (
     <div className="space-y-5">
@@ -168,7 +189,7 @@ export default function PredictionWidget({ availableModels }: PredictionWidgetPr
             Running Model…
           </>
         ) : (
-          '⚡ Run Prediction'
+          'Run Prediction'
         )}
       </button>
 
@@ -182,91 +203,68 @@ export default function PredictionWidget({ availableModels }: PredictionWidgetPr
         </div>
       )}
 
-      {/* Result */}
-      {result && styles && (() => {
-        // `result.confidence` is always P(failure) from the model (predict_proba[1]).
-        // "Label confidence" = how sure the model is about its own prediction:
-        //   - if predicted "failure"  → confidence in label = P(failure)
-        //   - if predicted "healthy"  → confidence in label = 1 - P(failure)
-        const failureProb = result.confidence;
-        const labelConfidence = result.label === 'failure' ? failureProb : 1 - failureProb;
-
-        // Risk level derived from raw failure probability, not the label
-        const riskColor =
-          failureProb >= 0.75 ? '#f87171'   // red
-          : failureProb >= 0.5 ? '#fb923c'  // orange
-          : failureProb >= 0.25 ? '#facc15' // yellow
-          : '#34d399';                       // green
-
-        const riskLabel =
-          failureProb >= 0.75 ? 'Critical'
-          : failureProb >= 0.5 ? 'High'
-          : failureProb >= 0.25 ? 'Medium'
-          : 'Low';
-
-        return (
-          <div className={`p-4 rounded-xl border ${styles.border} ${styles.bg} space-y-4`}>
-            {/* Top row: label + label confidence */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">
-                  {result.label === 'healthy' ? '✅' : '🚨'}
-                </span>
-                <div>
-                  <p className={`font-bold text-lg capitalize ${styles.text}`}>
-                    {result.label}
-                  </p>
-                  <p className="text-slate-400 text-xs font-mono">
-                    via {availableModels.find((m) => m.key === result.model)?.display_name ?? result.model}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className={`text-2xl font-mono font-bold ${styles.text}`}>
-                  {(labelConfidence * 100).toFixed(1)}%
+      {/* Result — card color driven by P(failure) risk tier, not binary label */}
+      {result && riskStyles && (
+        <div className={`p-4 rounded-xl border ${riskStyles.border} ${riskStyles.bg} space-y-4`}>
+          {/* Top row: label + label confidence */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {/* Colored status dot instead of emoji */}
+              <span
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: riskStyles.barColor }}
+              />
+              <div>
+                <p className={`font-bold text-lg capitalize ${riskStyles.text}`}>
+                  {result.label}
+                  <span className="ml-2 text-xs font-normal opacity-70">
+                    — {riskStyles.riskLabel} risk
+                  </span>
                 </p>
-                <p className="text-slate-500 text-xs font-mono">label confidence</p>
+                <p className="text-slate-400 text-xs font-mono">
+                  via {availableModels.find((m) => m.key === result.model)?.display_name ?? result.model}
+                </p>
               </div>
             </div>
-
-            {/* Label confidence bar */}
-            <div>
-              <div className="flex justify-between text-[10px] font-mono text-slate-500 mb-1">
-                <span>Confidence in prediction</span>
-                <span className={styles.text}>{(labelConfidence * 100).toFixed(1)}%</span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{
-                    width: `${labelConfidence * 100}%`,
-                    backgroundColor: result.label === 'healthy' ? '#34d399' : '#f87171',
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Failure risk bar — always shows raw P(failure) */}
-            <div>
-              <div className="flex justify-between text-[10px] font-mono text-slate-500 mb-1">
-                <span>Failure risk (P(failure))</span>
-                <span style={{ color: riskColor }}>
-                  {(failureProb * 100).toFixed(1)}% — {riskLabel}
-                </span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{
-                    width: `${failureProb * 100}%`,
-                    backgroundColor: riskColor,
-                  }}
-                />
-              </div>
+            <div className="text-right">
+              <p className={`text-2xl font-mono font-bold ${riskStyles.text}`}>
+                {(labelConfidence * 100).toFixed(1)}%
+              </p>
+              <p className="text-slate-500 text-xs font-mono">prediction confidence</p>
             </div>
           </div>
-        );
-      })()}
+
+          {/* Prediction confidence bar */}
+          <div>
+            <div className="flex justify-between text-[10px] font-mono text-slate-500 mb-1">
+              <span>Confidence in prediction</span>
+              <span className={riskStyles.text}>{(labelConfidence * 100).toFixed(1)}%</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${labelConfidence * 100}%`, backgroundColor: riskStyles.barColor }}
+              />
+            </div>
+          </div>
+
+          {/* Failure probability bar — always shows raw P(failure) */}
+          <div>
+            <div className="flex justify-between text-[10px] font-mono text-slate-500 mb-1">
+              <span>Failure probability P(failure)</span>
+              <span style={{ color: riskStyles.barColor }}>
+                {(failureProb * 100).toFixed(1)}% — {riskStyles.riskLabel}
+              </span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${failureProb * 100}%`, backgroundColor: riskStyles.barColor }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {availableModels.length === 0 && (
         <p className="text-center text-slate-600 text-sm font-mono py-4">

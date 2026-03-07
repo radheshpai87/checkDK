@@ -47,6 +47,7 @@ services:
       - DYNAMODB_HISTORY_TABLE=${DYNAMODB_HISTORY_TABLE:-checkdk_history}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - ML_MODELS_API_URL=http://ml-models:8000
     depends_on:
       ml-models:
         condition: service_healthy

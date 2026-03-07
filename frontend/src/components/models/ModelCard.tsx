@@ -60,7 +60,7 @@ export default function ModelCard({ model, isSelected, onClick }: ModelCardProps
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-2.5">
-          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${colors.dot} ${model.trained ? 'animate-none' : 'opacity-30'}`} />
+          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${colors.dot} ${model.trained ? '' : 'opacity-30'}`} />
           <div>
             <h3 className="text-white font-semibold text-base leading-tight">
               {model.display_name}

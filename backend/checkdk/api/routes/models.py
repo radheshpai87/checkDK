@@ -7,13 +7,18 @@ standalone ml-models inference service.
 """
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import httpx
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+
+from ...auth.dependencies import get_current_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -61,7 +66,11 @@ def _read_metrics(model_dir: str) -> Optional[Dict[str, Any]]:
     try:
         with open(path) as f:
             return json.load(f)
-    except Exception:
+    except json.JSONDecodeError as exc:
+        logger.error("Corrupt metrics.json for %s: %s", model_dir, exc)
+        return None
+    except OSError as exc:
+        logger.error("Cannot read metrics.json for %s: %s", model_dir, exc)
         return None
 
 
@@ -92,21 +101,21 @@ class ModelInfo(BaseModel):
 
 
 class PodMetricsInput(BaseModel):
-    cpu_usage: float
-    memory_usage: float
-    disk_usage: float
-    network_latency: float
-    restart_count: int
-    probe_failures: int
-    node_cpu_pressure: int
-    node_memory_pressure: int
-    pod_age_minutes: int
+    cpu_usage: float = Field(..., ge=0.0, le=100.0)
+    memory_usage: float = Field(..., ge=0.0, le=100.0)
+    disk_usage: float = Field(..., ge=0.0, le=100.0)
+    network_latency: float = Field(..., ge=0.0)
+    restart_count: int = Field(..., ge=0)
+    probe_failures: int = Field(..., ge=0)
+    node_cpu_pressure: int = Field(..., ge=0, le=1)
+    node_memory_pressure: int = Field(..., ge=0, le=1)
+    pod_age_minutes: int = Field(..., ge=0)
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
 @router.get("/models", response_model=Dict[str, Any])
-async def list_models():
+async def list_models(current_user: dict = Depends(get_current_user)):
     """
     Return metadata and performance metrics for all three ML models.
     Models that haven't been trained yet return `trained: false`.
@@ -147,7 +156,7 @@ async def list_models():
 
 
 @router.post("/models/predict/{model_key}", response_model=Dict[str, Any])
-async def predict_with_model(model_key: str, metrics: PodMetricsInput):
+async def predict_with_model(model_key: str, metrics: PodMetricsInput, current_user: dict = Depends(get_current_user)):
     """
     Proxy a prediction request to the ml-models inference service.
     model_key: one of 'random_forest', 'xgboost', or 'lstm'.
@@ -170,6 +179,11 @@ async def predict_with_model(model_key: str, metrics: PodMetricsInput):
             raise HTTPException(
                 status_code=503,
                 detail="ML models service is unavailable. Start it with docker compose up.",
+            )
+        except httpx.TimeoutException:
+            raise HTTPException(
+                status_code=503,
+                detail="ML models service timed out. The model may still be loading.",
             )
         except httpx.HTTPStatusError as exc:
             raise HTTPException(
