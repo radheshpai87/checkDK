@@ -25,7 +25,10 @@ export default function AuthCallbackPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const handled = useRef(false);
-  const [cliMode, setCliMode] = useState(false);
+
+  // Read cli_callback synchronously before first render so the effect never
+  // calls setState (avoids react-hooks/set-state-in-effect lint error).
+  const [cliMode] = useState(() => !!sessionStorage.getItem('checkdk_cli_callback'));
 
   useEffect(() => {
     if (handled.current) return;
@@ -40,17 +43,13 @@ export default function AuthCallbackPage() {
       return;
     }
 
-    // Check if this was initiated by the CLI local-server flow
     const cliCallback = sessionStorage.getItem('checkdk_cli_callback');
     sessionStorage.removeItem('checkdk_cli_callback');
 
     if (cliCallback) {
-      // CLI flow: send token directly to the local server, stay on this page
-      setCliMode(true);
+      // CLI flow: POST token to the local server; no state update needed here
+      // because cliMode was already derived above.
       const dest = `${cliCallback}?token=${encodeURIComponent(token)}`;
-      // Use fetch so the token goes to localhost silently;
-      // fall back to a direct redirect if fetch fails (e.g. CORS not an issue
-      // since localhost is same-origin for the local server).
       fetch(dest).catch(() => { window.location.href = dest; });
       return;
     }
