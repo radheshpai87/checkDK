@@ -34,18 +34,10 @@ def init_cmd() -> None:
 
     existing.append(f"CHECKDK_API_URL={api_url}")
 
-    default_ws = os.getenv("CHECKDK_WS_URL", "wss://m7fijvmhiq.us-east-1.awsapprunner.com")
-    ws_url = console.input(
-        f"  WebSocket URL (for monitor) [[dim]{default_ws}[/]]: "
-    ).strip() or default_ws
-    existing = [l for l in existing if not l.startswith("CHECKDK_WS_URL=")]
-    existing.append(f"CHECKDK_WS_URL={ws_url}")
-
     env_path.write_text("\n".join(existing) + "\n")
 
     console.print(
         f"\n[bold green]✓ Saved to:[/] {env_path}\n"
-        f"  [dim]CHECKDK_API_URL={api_url}[/]\n"
-        f"  [dim]CHECKDK_WS_URL={ws_url}[/]\n\n"
-        "Tip: You can also set these as shell environment variables."
+        f"  [dim]CHECKDK_API_URL={api_url}[/]\n\n"
+        "Tip: You can also set this as a shell environment variable."
     )
