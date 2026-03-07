@@ -8,14 +8,24 @@ Trains on pod_failure_dataset.csv and saves the model + scaler to disk.
 """
 
 import os
+import json
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from datetime import datetime, timezone
 from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
 import joblib
 
 # ---------------------------------------------------------------------------
@@ -195,6 +205,25 @@ def train():
     joblib.dump(scaler, SCALER_PATH)
     print(f"\n[LSTM] Model saved to {MODEL_PATH}")
     print(f"[LSTM] Scaler saved to {SCALER_PATH}")
+
+    # Persist metrics to JSON for the dashboard
+    metrics_data = {
+        "name": "lstm",
+        "display_name": "LSTM",
+        "algorithm": "Stacked LSTM (2 layers, hidden=64, dropout=0.3)",
+        "trained_at": datetime.now(timezone.utc).isoformat(),
+        "accuracy": round(float(accuracy_score(all_true, all_pred)), 4),
+        "precision": round(float(precision_score(all_true, all_pred, zero_division=0)), 4),
+        "recall": round(float(recall_score(all_true, all_pred, zero_division=0)), 4),
+        "f1": round(float(f1_score(all_true, all_pred, zero_division=0)), 4),
+        "roc_auc": round(float(roc_auc_score(all_true, all_proba)), 4),
+        "confusion_matrix": confusion_matrix(all_true, all_pred).tolist(),
+        "feature_importances": None,
+    }
+    metrics_path = os.path.join(BASE_DIR, "metrics.json")
+    with open(metrics_path, "w") as mf:
+        json.dump(metrics_data, mf, indent=2)
+    print(f"[LSTM] Metrics saved to {metrics_path}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,59 @@
+{
+  "name": "random_forest",
+  "display_name": "Random Forest",
+  "algorithm": "RandomForestClassifier (200 trees, balanced)",
+  "trained_at": "2026-03-06T19:16:24.430406+00:00",
+  "accuracy": 0.9913,
+  "precision": 0.753,
+  "recall": 0.731,
+  "f1": 0.7418,
+  "roc_auc": 0.9963,
+  "confusion_matrix": [
+    [
+      9788,
+      41
+    ],
+    [
+      46,
+      125
+    ]
+  ],
+  "feature_importances": [
+    {
+      "feature": "memory_usage",
+      "importance": 0.4493
+    },
+    {
+      "feature": "cpu_usage",
+      "importance": 0.2614
+    },
+    {
+      "feature": "restart_count",
+      "importance": 0.1382
+    },
+    {
+      "feature": "probe_failures",
+      "importance": 0.0513
+    },
+    {
+      "feature": "node_cpu_pressure",
+      "importance": 0.0281
+    },
+    {
+      "feature": "node_memory_pressure",
+      "importance": 0.0243
+    },
+    {
+      "feature": "pod_age_minutes",
+      "importance": 0.0167
+    },
+    {
+      "feature": "network_latency",
+      "importance": 0.016
+    },
+    {
+      "feature": "disk_usage",
+      "importance": 0.0147
+    }
+  ]
+}

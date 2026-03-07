@@ -32,6 +32,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: string |
 import { fetchUserHistory, fetchUserPatterns } from '../lib/api';
 import type { HistoryItem, PatternItem } from '../lib/api';
 import Playground from '../components/playground/Playground';
+import ModelsTab from '../components/models/ModelsTab';
 
 // ── Score badge ────────────────────────────────────────────────────────────────
 
@@ -272,7 +273,7 @@ function UserMenu({ onLogout }: { onLogout: () => void }) {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
-type Tab = 'playground' | 'history';
+type Tab = 'playground' | 'history' | 'models';
 
 export default function AppDashboardPage() {
   const { user, token, logout } = useAuth();
@@ -297,7 +298,7 @@ export default function AppDashboardPage() {
 
           {/* Tabs */}
           <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-xl p-1">
-            {(['playground', 'history'] as Tab[]).map((tab) => (
+            {(['playground', 'history', 'models'] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -307,7 +308,7 @@ export default function AppDashboardPage() {
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                {tab === 'playground' ? '⚡ Playground' : '📊 History'}
+                {tab === 'playground' ? 'Playground' : tab === 'history' ? 'History' : 'Models'}
               </button>
             ))}
           </div>
@@ -365,6 +366,26 @@ export default function AppDashboardPage() {
               </div>
               <ErrorBoundary>
                 {token && <HistoryTab token={token} />}
+              </ErrorBoundary>
+            </motion.div>
+          )}
+
+          {activeTab === 'models' && (
+            <motion.div
+              key="models"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-4">
+                <h2 className="text-2xl font-bold text-white mb-1">ML Models</h2>
+                <p className="text-slate-400 text-sm">
+                  Pod failure detection models — metrics, feature importances, and live inference.
+                </p>
+              </div>
+              <ErrorBoundary>
+                <ModelsTab token={token!} />
               </ErrorBoundary>
             </motion.div>
           )}
