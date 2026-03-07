@@ -3,7 +3,7 @@ name: Publish Release
 on:
   push:
     tags:
-      - "v*.*.*"   # e.g. v0.2.0
+      - "cli-v*.*.*"   # e.g. cli-v0.2.6  (avoids conflicts with npm-v* tags)
 
 permissions:
   contents: write       # create GitHub Release
