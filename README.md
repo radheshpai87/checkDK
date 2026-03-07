@@ -15,7 +15,7 @@ Catch port conflicts, security misconfigurations, missing health probes, and mor
 - **ML risk prediction** — RandomForest model estimates the probability of pod/container failure
 - **Analysis history** — every scan is stored per-user; search and re-open past results
 - **GitHub & Google OAuth** — sign in with your existing account, no password required
-- **CLI** — optional `checkdk` CLI wrapper for local use (see [cli/README.md](cli/README.md))
+- **CLI** — optional `checkdk` CLI wrapper for local use — install via `npm install -g @checkdk/cli` (no Python needed) or `pip install checkdk-cli` (see [cli/README.md](cli/README.md))
 
 ---
 
@@ -41,16 +41,16 @@ Browser
                                         └── RandomForest model  (risk score)
 ```
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 19, TypeScript, Vite 7, TailwindCSS 4 |
-| Backend | FastAPI, Python 3.11, Uvicorn |
-| Auth | GitHub OAuth, Google OAuth, JWT (HS256) |
-| Database | AWS DynamoDB |
-| AI | Mistral AI, Groq (Llama 3.3 70B) |
-| ML | scikit-learn RandomForest |
-| Hosting | AWS App Runner (backend), S3 + CloudFront (frontend) |
-| CI/CD | GitHub Actions → ECR → App Runner + S3 |
+| Layer    | Technology                                           |
+| -------- | ---------------------------------------------------- |
+| Frontend | React 19, TypeScript, Vite 7, TailwindCSS 4          |
+| Backend  | FastAPI, Python 3.11, Uvicorn                        |
+| Auth     | GitHub OAuth, Google OAuth, JWT (HS256)              |
+| Database | AWS DynamoDB                                         |
+| AI       | Mistral AI, Groq (Llama 3.3 70B)                     |
+| ML       | scikit-learn RandomForest                            |
+| Hosting  | AWS App Runner (backend), S3 + CloudFront (frontend) |
+| CI/CD    | GitHub Actions → ECR → App Runner + S3               |
 
 ---
 
@@ -91,11 +91,11 @@ DYNAMODB_HISTORY_TABLE=checkdk_history
 docker compose up --build
 ```
 
-| Service | URL |
-|---|---|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:8000 |
-| API docs | http://localhost:8000/docs |
+| Service     | URL                        |
+| ----------- | -------------------------- |
+| Frontend    | http://localhost:3000      |
+| Backend API | http://localhost:8000      |
+| API docs    | http://localhost:8000/docs |
 
 > **Note:** The custom `10.201.0.0/24` subnet is set in `docker-compose.yml` to avoid conflicts with common home-network ranges.
 
@@ -131,6 +131,7 @@ To use the CLI against production, set `CHECKDK_API_URL=https://checkdk.app/api`
 ## What It Validates
 
 ### Docker Compose
+
 - Port conflicts between services
 - Missing images or build specs
 - Broken service dependencies (`depends_on`)
@@ -140,6 +141,7 @@ To use the CLI against production, set `CHECKDK_API_URL=https://checkdk.app/api`
 - Undefined volumes / networks
 
 ### Kubernetes
+
 - NodePort conflicts
 - Duplicate ports within a Service
 - Selector / label mismatches
@@ -184,36 +186,36 @@ To use the CLI against production, set `CHECKDK_API_URL=https://checkdk.app/api`
 
 GitHub Actions runs automatically on every pull request and every merge to `main`.
 
-| Workflow | Trigger | Steps |
-|---|---|---|
-| **CI** | PR to `main` | pytest, `tsc --noEmit`, ESLint |
+| Workflow   | Trigger        | Steps                                                                                                         |
+| ---------- | -------------- | ------------------------------------------------------------------------------------------------------------- |
+| **CI**     | PR to `main`   | pytest, `tsc --noEmit`, ESLint                                                                                |
 | **Deploy** | Push to `main` | Build & push Docker image to ECR → deploy to App Runner → build frontend → sync to S3 → invalidate CloudFront |
 
 AWS authentication uses OIDC (no long-lived AWS keys stored in GitHub). See [.github/iam-policy-github-actions.json](.github/iam-policy-github-actions.json) for the minimum required permissions.
 
 Required GitHub repository secrets:
 
-| Secret | Value |
-|---|---|
-| `AWS_ROLE_ARN` | IAM role ARN for OIDC |
-| `VITE_API_BASE_URL` | Production API URL |
-| `VITE_GITHUB_CLIENT_ID` | GitHub OAuth app client ID |
-| `VITE_GOOGLE_CLIENT_ID` | Google OAuth app client ID |
+| Secret                       | Value                      |
+| ---------------------------- | -------------------------- |
+| `AWS_ROLE_ARN`               | IAM role ARN for OIDC      |
+| `VITE_API_BASE_URL`          | Production API URL         |
+| `VITE_GITHUB_CLIENT_ID`      | GitHub OAuth app client ID |
+| `VITE_GOOGLE_CLIENT_ID`      | Google OAuth app client ID |
 | `CLOUDFRONT_DISTRIBUTION_ID` | CloudFront distribution ID |
 
 ---
 
 ## Roadmap
 
-| Phase | Feature | Status |
-|---|---|---|
-| 1 | AWS infrastructure (App Runner, S3, CloudFront, ECR) | ✅ Complete |
-| 2 | Auth + Database (GitHub/Google OAuth, JWT, DynamoDB history) | ✅ Complete |
-| 3 | Post-login app interface (dashboard, playground, get-started) | ✅ Complete |
-| 4 | CI/CD (GitHub Actions — pytest, lint, ECR deploy, S3 sync) | ✅ Complete |
-| 5 | Real-time monitoring (WebSocket pod metrics stream, recharts) | 🔲 Planned |
-| 6 | Chaos dataset + ML retraining (real EKS failure data via Chaos Mesh) | 🔲 Planned |
-| 7 | Amazon Bedrock (replace Mistral with Claude Haiku via IAM role) | 🔲 Planned |
+| Phase | Feature                                                              | Status      |
+| ----- | -------------------------------------------------------------------- | ----------- |
+| 1     | AWS infrastructure (App Runner, S3, CloudFront, ECR)                 | ✅ Complete |
+| 2     | Auth + Database (GitHub/Google OAuth, JWT, DynamoDB history)         | ✅ Complete |
+| 3     | Post-login app interface (dashboard, playground, get-started)        | ✅ Complete |
+| 4     | CI/CD (GitHub Actions — pytest, lint, ECR deploy, S3 sync)           | ✅ Complete |
+| 5     | Real-time monitoring (WebSocket pod metrics stream, recharts)        | 🔲 Planned  |
+| 6     | Chaos dataset + ML retraining (real EKS failure data via Chaos Mesh) | 🔲 Planned  |
+| 7     | Amazon Bedrock (replace Mistral with Claude Haiku via IAM role)      | 🔲 Planned  |
 
 ---
 
@@ -221,12 +223,12 @@ Required GitHub repository secrets:
 
 The backend exposes four prediction endpoints for Kubernetes pod failure risk:
 
-| Endpoint | Model |
-|---|---|
-| `POST /predict/random-forest` | scikit-learn RandomForest |
-| `POST /predict/xgboost` | XGBoost |
-| `POST /predict/lstm` | PyTorch LSTM |
-| `POST /predict/ensemble` | Majority vote across all three |
+| Endpoint                      | Model                          |
+| ----------------------------- | ------------------------------ |
+| `POST /predict/random-forest` | scikit-learn RandomForest      |
+| `POST /predict/xgboost`       | XGBoost                        |
+| `POST /predict/lstm`          | PyTorch LSTM                   |
+| `POST /predict/ensemble`      | Majority vote across all three |
 
 **Request fields:** `cpu_usage`, `memory_usage`, `disk_usage`, `network_latency`, `restart_count`, `probe_failures`, `node_cpu_pressure`, `node_memory_pressure`, `pod_age_minutes`
 
@@ -253,8 +255,8 @@ curl -X POST https://checkdk.app/api/predict/ensemble \
   "ensemble_label": "failure",
   "ensemble_confidence": 0.87,
   "random_forest": { "label": "failure", "confidence": 0.62 },
-  "xgboost":       { "label": "failure", "confidence": 1.00 },
-  "lstm":          { "label": "failure", "confidence": 1.00 }
+  "xgboost": { "label": "failure", "confidence": 1.0 },
+  "lstm": { "label": "failure", "confidence": 1.0 }
 }
 ```
 

@@ -1,0 +1,2 @@
+# Files only needed during local development, not in the published package
+.gitkeep

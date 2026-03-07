@@ -1,0 +1,71 @@
+#!/usr/bin/env node
+"use strict";
+
+/**
+ * @checkdk/cli entry-point shim.
+ *
+ * Resolves the platform-specific binary installed as an optional dependency,
+ * then exec-replaces the current process with it so all stdio / signals pass
+ * through correctly.
+ */
+
+const os = require("os");
+const path = require("path");
+const { spawnSync } = require("child_process");
+
+// Map Node's os.platform() + os.arch() to the matching optional package name.
+const PLATFORM_MAP = {
+  "linux-x64":    "@checkdk/cli-linux-x64",
+  "linux-arm64":  "@checkdk/cli-linux-arm64",
+  "darwin-x64":   "@checkdk/cli-darwin-x64",
+  "darwin-arm64": "@checkdk/cli-darwin-arm64",
+  "win32-x64":    "@checkdk/cli-win32-x64",
+};
+
+const key = `${os.platform()}-${os.arch()}`;
+const pkg = PLATFORM_MAP[key];
+
+if (!pkg) {
+  console.error(
+    `[checkdk] Unsupported platform: ${key}\n` +
+    `Please install the CLI via pip instead:\n\n` +
+    `    pip install checkdk-cli\n`
+  );
+  process.exit(1);
+}
+
+// Locate the binary inside the optional package.
+let binaryPath;
+try {
+  // require.resolve gives us the package.json of the optional dep;
+  // the binary lives next to it in bin/checkdk (or bin/checkdk.exe on Windows).
+  const pkgJsonPath = require.resolve(`${pkg}/package.json`);
+  const binDir = path.join(path.dirname(pkgJsonPath), "bin");
+  const binName = os.platform() === "win32" ? "checkdk.exe" : "checkdk";
+  binaryPath = path.join(binDir, binName);
+} catch {
+  console.error(
+    `[checkdk] Could not locate the binary for platform "${key}".\n` +
+    `The optional package "${pkg}" may not have been installed.\n\n` +
+    `Try reinstalling:\n` +
+    `    npm install -g @checkdk/cli\n\n` +
+    `Or use pip as a fallback:\n` +
+    `    pip install checkdk-cli\n`
+  );
+  process.exit(1);
+}
+
+// Forward all arguments and replace the current process image so that exit
+// codes and signals (Ctrl-C, etc.) behave exactly as if the binary was invoked
+// directly.
+const result = spawnSync(binaryPath, process.argv.slice(2), {
+  stdio: "inherit",
+  windowsHide: false,
+});
+
+if (result.error) {
+  console.error(`[checkdk] Failed to launch binary: ${result.error.message}`);
+  process.exit(1);
+}
+
+process.exit(result.status ?? 1);
