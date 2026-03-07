@@ -75,12 +75,16 @@ def _k8s_stats(pod: str, namespace: str) -> Optional[dict]:
 
 def _predict(api_url: str, stats: dict, platform: str, service: str, no_ai: bool) -> Optional[dict]:
     """POST to /predict and return the prediction dict, or None on error."""
+    # docker stats CPUPerc can exceed 100% on multi-core machines (e.g. 200% = 2 cores at max).
+    # The /predict endpoint validates cpu/memory in [0, 100], so clamp before sending.
+    cpu = min(stats["cpu"], 100.0)
+    memory = min(stats["memory"], 100.0)
     try:
         resp = requests.post(
             f"{api_url}/predict",
             json={
-                "cpu": stats["cpu"],
-                "memory": stats["memory"],
+                "cpu": cpu,
+                "memory": memory,
                 "disk": 50.0,
                 "latency": 10.0,
                 "restarts": 0,
@@ -102,6 +106,9 @@ def _predict(api_url: str, stats: dict, platform: str, service: str, no_ai: bool
             "confidence": pred.get("confidence", 0.0),
             "risk_level": pred.get("risk_level", "unknown"),
         }
+    except requests.HTTPError as exc:
+        _console.log(f"[dim red]Predict HTTP {exc.response.status_code}: {exc.response.text[:200]}[/]")
+        return None
     except Exception as exc:
         _console.log(f"[dim red]Predict error: {exc}[/]")
         return None
