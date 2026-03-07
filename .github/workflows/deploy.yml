@@ -43,7 +43,7 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           IMAGE_URI="$REGISTRY/$REPOSITORY:$SHA"
-          docker build -t "$IMAGE_URI" -t "$REGISTRY/$REPOSITORY:latest" ./backend
+          docker build -f backend/Dockerfile -t "$IMAGE_URI" -t "$REGISTRY/$REPOSITORY:latest" .
           docker push "$IMAGE_URI"
           docker push "$REGISTRY/$REPOSITORY:latest"
           echo "uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
