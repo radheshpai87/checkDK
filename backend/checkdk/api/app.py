@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routes.analyze import router as analyze_router
 from .routes.auth import router as auth_router
 from .routes.models import router as models_router
+from .routes.monitor import router as monitor_router
 from .routes.predict import router as predict_router
 
 app = FastAPI(
@@ -36,6 +37,7 @@ app.include_router(auth_router, tags=["Auth"])
 app.include_router(analyze_router, prefix="/analyze", tags=["Analysis"])
 app.include_router(predict_router, tags=["Prediction"])
 app.include_router(models_router, tags=["Models"])
+app.include_router(monitor_router, tags=["Monitor"])
 
 
 @app.get("/health", tags=["Health"])
