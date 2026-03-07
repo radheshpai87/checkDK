@@ -1,0 +1,5 @@
+# This directory is intentionally empty.
+
+# The compiled `checkdk` binary for darwin-arm64 is placed here by the CI
+
+# workflow (npm-publish.yml) before the package is published to npm.

@@ -12,6 +12,29 @@ dependencies — it is a thin HTTP/WebSocket client with a rich terminal UI.
 
 ## Install
 
+### npm (no Python required)
+
+The easiest way to install for JavaScript / Node.js users.
+Pre-compiled standalone binaries are distributed per-platform — nothing else needs to be installed.
+
+```bash
+npm install -g @checkdk/cli
+```
+
+Supported platforms:
+
+| Platform                    | Package                     |
+| --------------------------- | --------------------------- |
+| Linux x64                   | `@checkdk/cli-linux-x64`    |
+| Linux arm64                 | `@checkdk/cli-linux-arm64`  |
+| macOS x64 (Intel)           | `@checkdk/cli-darwin-x64`   |
+| macOS arm64 (Apple Silicon) | `@checkdk/cli-darwin-arm64` |
+| Windows x64                 | `@checkdk/cli-win32-x64`    |
+
+After install, `checkdk` is available on your PATH immediately.
+
+### pip / pipx (Python required)
+
 ```bash
 # Recommended — isolated install, checkdk on PATH globally
 pipx install checkdk-cli
@@ -19,6 +42,8 @@ pipx install checkdk-cli
 # Or with plain pip
 pip install checkdk-cli
 ```
+
+Requires Python 3.10 or later.
 
 The `checkdk` command is available immediately after install.
 No configuration required — the CLI talks to `https://checkdk.app/api` by default.
@@ -69,21 +94,21 @@ checkdk predict --cpu 93 --memory 91 --restarts 3 \
 checkdk predict --cpu 85 --memory 70 --json             # CI/scripting output
 ```
 
-| Option | Default | Description |
-|---|---|---|
-| `--cpu` | required | CPU usage % |
-| `--memory` | required | Memory usage % |
-| `--disk` | 50 | Disk usage % |
-| `--latency` | 10 | Network latency ms |
-| `--restarts` | 0 | Container restart count |
-| `--probe-failures` | 0 | Liveness/readiness probe failures |
-| `--cpu-pressure` | 0 | Node CPU pressure (0 or 1) |
-| `--mem-pressure` | 0 | Node memory pressure (0 or 1) |
-| `--age` | 60 | Pod age in minutes |
-| `--service` | — | Service/pod name (label only) |
-| `--platform` | docker | `docker` or `kubernetes` |
-| `--no-ai` | — | Skip LLM, return ML result only |
-| `--json` | — | Raw JSON output for scripting |
+| Option             | Default  | Description                       |
+| ------------------ | -------- | --------------------------------- |
+| `--cpu`            | required | CPU usage %                       |
+| `--memory`         | required | Memory usage %                    |
+| `--disk`           | 50       | Disk usage %                      |
+| `--latency`        | 10       | Network latency ms                |
+| `--restarts`       | 0        | Container restart count           |
+| `--probe-failures` | 0        | Liveness/readiness probe failures |
+| `--cpu-pressure`   | 0        | Node CPU pressure (0 or 1)        |
+| `--mem-pressure`   | 0        | Node memory pressure (0 or 1)     |
+| `--age`            | 60       | Pod age in minutes                |
+| `--service`        | —        | Service/pod name (label only)     |
+| `--platform`       | docker   | `docker` or `kubernetes`          |
+| `--no-ai`          | —        | Skip LLM, return ML result only   |
+| `--json`           | —        | Raw JSON output for scripting     |
 
 ### Monitor (real-time)
 
@@ -114,10 +139,10 @@ Experiments: `cpu`, `memory`, `disk`, `network`, `pod-kill` (k8s only).
 
 ## Environment variables
 
-| Variable | Default | Description |
-|---|---|---|
-| `CHECKDK_API_URL` | `https://checkdk.app/api` | Backend API base URL |
-| `CHECKDK_TOKEN` | — | JWT auth token (set by `checkdk auth login`) |
+| Variable          | Default                   | Description                                  |
+| ----------------- | ------------------------- | -------------------------------------------- |
+| `CHECKDK_API_URL` | `https://checkdk.app/api` | Backend API base URL                         |
+| `CHECKDK_TOKEN`   | —                         | JWT auth token (set by `checkdk auth login`) |
 
 The CLI auto-loads `~/.checkdk/.env` and `./.env` on startup.
 
@@ -145,4 +170,3 @@ pytest
 # Lint
 ruff check .
 ```
-

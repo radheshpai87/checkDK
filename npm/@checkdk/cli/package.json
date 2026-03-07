@@ -1,0 +1,36 @@
+{
+  "name": "@checkdk/cli",
+  "version": "0.2.9",
+  "description": "AI-powered Docker/Kubernetes issue detector and pod failure predictor",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/checkDK_AWS"
+  },
+  "homepage": "https://checkdk.app",
+  "keywords": [
+    "docker",
+    "kubernetes",
+    "devops",
+    "cli",
+    "ai",
+    "chaos-engineering",
+    "monitoring"
+  ],
+  "bin": {
+    "checkdk": "bin/checkdk"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "optionalDependencies": {
+    "@checkdk/cli-linux-x64": "0.2.9",
+    "@checkdk/cli-linux-arm64": "0.2.9",
+    "@checkdk/cli-darwin-x64": "0.2.9",
+    "@checkdk/cli-darwin-arm64": "0.2.9",
+    "@checkdk/cli-win32-x64": "0.2.9"
+  }
+}

@@ -1,0 +1,276 @@
+name: Publish to npm
+
+# Triggered by the same version tag as publish.yml (PyPI).
+# Both workflows fire on the same tag — PyPI and npm releases stay in sync.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Build platform binaries in parallel ──────────────────────────────────
+
+  build-linux-x64:
+    name: Build · linux-x64
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install CLI dependencies and PyInstaller
+        working-directory: cli
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e .
+
+      - name: Build standalone binary
+        working-directory: cli
+        run: pyinstaller checkdk.spec --distpath dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-linux-x64
+          path: cli/dist/checkdk
+
+  build-linux-arm64:
+    name: Build · linux-arm64
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install CLI dependencies and PyInstaller
+        working-directory: cli
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e .
+
+      - name: Build standalone binary
+        working-directory: cli
+        run: pyinstaller checkdk.spec --distpath dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-linux-arm64
+          path: cli/dist/checkdk
+
+  build-darwin-x64:
+    name: Build · darwin-x64
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: x64 # x86_64 Python via Rosetta 2 → produces x86_64 binary
+
+      - name: Install CLI dependencies and PyInstaller
+        working-directory: cli
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e .
+
+      - name: Build standalone binary
+        working-directory: cli
+        run: pyinstaller checkdk.spec --distpath dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-darwin-x64
+          path: cli/dist/checkdk
+
+  build-darwin-arm64:
+    name: Build · darwin-arm64
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install CLI dependencies and PyInstaller
+        working-directory: cli
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e .
+
+      - name: Build standalone binary
+        working-directory: cli
+        run: pyinstaller checkdk.spec --distpath dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-darwin-arm64
+          path: cli/dist/checkdk
+
+  build-win32-x64:
+    name: Build · win32-x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install CLI dependencies and PyInstaller
+        working-directory: cli
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e .
+
+      - name: Build standalone binary
+        working-directory: cli
+        shell: pwsh
+        run: pyinstaller checkdk.spec --distpath dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-win32-x64
+          path: cli/dist/checkdk.exe
+
+  # ── Publish all npm packages (after all builds pass) ─────────────────────
+
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-22.04
+    needs:
+      - build-linux-x64
+      - build-linux-arm64
+      - build-darwin-x64
+      - build-darwin-arm64
+      - build-win32-x64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      # ── Download all compiled binaries into their npm package bin/ dirs ──
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary-linux-x64
+          path: npm/@checkdk/cli-linux-x64/bin/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary-linux-arm64
+          path: npm/@checkdk/cli-linux-arm64/bin/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary-darwin-x64
+          path: npm/@checkdk/cli-darwin-x64/bin/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary-darwin-arm64
+          path: npm/@checkdk/cli-darwin-arm64/bin/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary-win32-x64
+          path: npm/@checkdk/cli-win32-x64/bin/
+
+      # ── Restore executable permissions (lost during artifact upload) ──────
+
+      - name: Restore executable permissions on Unix binaries
+        run: |
+          chmod +x npm/@checkdk/cli-linux-x64/bin/checkdk
+          chmod +x npm/@checkdk/cli-linux-arm64/bin/checkdk
+          chmod +x npm/@checkdk/cli-darwin-x64/bin/checkdk
+          chmod +x npm/@checkdk/cli-darwin-arm64/bin/checkdk
+
+      # ── Remove .gitkeep placeholders before packing ───────────────────────
+
+      - name: Remove .gitkeep files
+        run: find npm/@checkdk -name ".gitkeep" -delete
+
+      # ── Sync all package.json versions to match the git tag ──────────────
+      # e.g. tag v0.2.5 → version "0.2.5" in every package.json
+
+      - name: Sync package.json versions from git tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for pkg in \
+            npm/@checkdk/cli \
+            npm/@checkdk/cli-linux-x64 \
+            npm/@checkdk/cli-linux-arm64 \
+            npm/@checkdk/cli-darwin-x64 \
+            npm/@checkdk/cli-darwin-arm64 \
+            npm/@checkdk/cli-win32-x64; do
+            node -e "
+              const fs = require('fs');
+              const p = '${pkg}/package.json';
+              const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+              j.version = '${VERSION}';
+              if (j.optionalDependencies) {
+                for (const k of Object.keys(j.optionalDependencies)) {
+                  j.optionalDependencies[k] = '${VERSION}';
+                }
+              }
+              fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
+            "
+          done
+
+      # ── Publish platform packages first, then the orchestrator ───────────
+      # Platform packages must exist on the registry before @checkdk/cli
+      # because npm resolves optionalDependencies at install time.
+
+      - name: Publish @checkdk/cli-linux-x64
+        working-directory: npm/@checkdk/cli-linux-x64
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @checkdk/cli-linux-arm64
+        working-directory: npm/@checkdk/cli-linux-arm64
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @checkdk/cli-darwin-x64
+        working-directory: npm/@checkdk/cli-darwin-x64
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @checkdk/cli-darwin-arm64
+        working-directory: npm/@checkdk/cli-darwin-arm64
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @checkdk/cli-win32-x64
+        working-directory: npm/@checkdk/cli-win32-x64
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @checkdk/cli
+        working-directory: npm/@checkdk/cli
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
