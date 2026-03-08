@@ -12,29 +12,6 @@ dependencies — it is a thin HTTP/WebSocket client with a rich terminal UI.
 
 ## Install
 
-### npm (no Python required)
-
-The easiest way to install for JavaScript / Node.js users.
-Pre-compiled standalone binaries are distributed per-platform — nothing else needs to be installed.
-
-```bash
-npm install -g @checkdk/cli
-```
-
-Supported platforms:
-
-| Platform                    | Package                     |
-| --------------------------- | --------------------------- |
-| Linux x64                   | `@checkdk/cli-linux-x64`    |
-| Linux arm64                 | `@checkdk/cli-linux-arm64`  |
-| macOS x64 (Intel)           | `@checkdk/cli-darwin-x64`   |
-| macOS arm64 (Apple Silicon) | `@checkdk/cli-darwin-arm64` |
-| Windows x64                 | `@checkdk/cli-win32-x64`    |
-
-After install, `checkdk` is available on your PATH immediately.
-
-### pip / pipx (Python required)
-
 ```bash
 # Recommended — isolated install, checkdk on PATH globally
 pipx install checkdk-cli

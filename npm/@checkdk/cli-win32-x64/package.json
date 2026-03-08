@@ -1,6 +1,6 @@
 {
   "name": "@checkdk/cli-win32-x64",
-  "version": "0.2.9",
+  "version": "0.3.2",,
   "description": "Windows x64 binary for @checkdk/cli",
   "license": "MIT",
   "repository": {
