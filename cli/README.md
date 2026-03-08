@@ -112,14 +112,24 @@ checkdk predict --cpu 85 --memory 70 --json             # CI/scripting output
 
 ### Monitor (real-time)
 
-Streams live metrics to the API over WebSocket and displays failure risk in a
-Rich Live table. Requires the container/pod to be running.
+Polls live container/pod metrics and sends each sample to the prediction API,
+displaying failure risk, confidence, and risk level in a Rich Live table.
+Requires the container/pod to be running.
 
 ```bash
 checkdk monitor docker my-container
 checkdk monitor docker my-container --duration 120 --interval 3
+checkdk monitor docker my-container --no-ai          # ML prediction only, skip LLM
 checkdk monitor k8s my-pod -n production
+checkdk monitor k8s my-pod -n production --no-ai
 ```
+
+| Option       | Default | Description                                   |
+| ------------ | ------- | --------------------------------------------- |
+| `--duration` | 60      | How long to monitor, in seconds               |
+| `--interval` | 5       | Seconds between each sample                   |
+| `--no-ai`    | —       | Skip LLM analysis, return ML risk score only  |
+| `-n`         | default | Kubernetes namespace (k8s only)               |
 
 ### Chaos
 
