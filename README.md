@@ -1,8 +1,12 @@
 # checkDK
 
-**AI-powered Docker Compose & Kubernetes configuration validator — available at [checkdk.app](https://checkdk.app)**
+**AI-powered Docker Compose & Kubernetes configuration validator**
 
 Catch port conflicts, security misconfigurations, missing health probes, and more before they cost you time in production. Upload a config file, get an instant analysis with AI-generated fix suggestions, and keep a searchable history of every scan.
+
+[![Website](https://img.shields.io/badge/website-checkdk.app-4f46e5)](https://checkdk.app)
+[![npm](https://img.shields.io/npm/v/%40checkdk%2Fcli?label=npm&color=cb3837)](https://www.npmjs.com/package/@checkdk/cli)
+[![PyPI](https://img.shields.io/pypi/v/checkdk-cli?label=PyPI&color=3775a9)](https://pypi.org/project/checkdk-cli/)
 
 ---
 
@@ -72,7 +76,6 @@ GOOGLE_CLIENT_SECRET=
 
 # JWT
 JWT_SECRET=change-me-to-a-long-random-string
-
 # AI providers (optional — analysis still works without them)
 GROQ_API_KEY=
 MISTRAL_API_KEY=
@@ -213,7 +216,7 @@ Required GitHub repository secrets:
 | 2     | Auth + Database (GitHub/Google OAuth, JWT, DynamoDB history)         | ✅ Complete |
 | 3     | Post-login app interface (dashboard, playground, get-started)        | ✅ Complete |
 | 4     | CI/CD (GitHub Actions — pytest, lint, ECR deploy, S3 sync)           | ✅ Complete |
-| 5     | Real-time monitoring (WebSocket pod metrics stream, recharts)        | 🔲 Planned  |
+| 5     | Real-time monitoring (REST-polled pod metrics, risk scoring, CLI)    | ✅ Complete |
 | 6     | Chaos dataset + ML retraining (real EKS failure data via Chaos Mesh) | 🔲 Planned  |
 | 7     | Amazon Bedrock (replace Mistral with Claude Haiku via IAM role)      | 🔲 Planned  |
 
@@ -221,22 +224,20 @@ Required GitHub repository secrets:
 
 ## ML Prediction API
 
-The backend exposes four prediction endpoints for Kubernetes pod failure risk:
+The backend exposes a Random Forest prediction endpoint for pod failure risk:
 
-| Endpoint                      | Model                          |
-| ----------------------------- | ------------------------------ |
-| `POST /predict/random-forest` | scikit-learn RandomForest      |
-| `POST /predict/xgboost`       | XGBoost                        |
-| `POST /predict/lstm`          | PyTorch LSTM                   |
-| `POST /predict/ensemble`      | Majority vote across all three |
+| Endpoint                      | Model                     |
+| ----------------------------- | ------------------------- |
+| `POST /predict`               | scikit-learn RandomForest |
 
 **Request fields:** `cpu_usage`, `memory_usage`, `disk_usage`, `network_latency`, `restart_count`, `probe_failures`, `node_cpu_pressure`, `node_memory_pressure`, `pod_age_minutes`
 
-Example — ensemble prediction (failure case):
+Example — failure case:
 
 ```bash
-curl -X POST https://checkdk.app/api/predict/ensemble \
+curl -X POST https://checkdk.app/api/predict \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{
     "cpu_usage": 94.5,
     "memory_usage": 96.2,
@@ -252,11 +253,11 @@ curl -X POST https://checkdk.app/api/predict/ensemble \
 
 ```json
 {
-  "ensemble_label": "failure",
-  "ensemble_confidence": 0.87,
-  "random_forest": { "label": "failure", "confidence": 0.62 },
-  "xgboost": { "label": "failure", "confidence": 1.0 },
-  "lstm": { "label": "failure", "confidence": 1.0 }
+  "prediction": 1,
+  "label": "failure",
+  "confidence": 0.87,
+  "risk_level": "critical",
+  "ai_analysis": "..."
 }
 ```
 
