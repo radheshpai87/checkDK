@@ -1,76 +1,50 @@
 """
 Routes: /models
 
-Exposes ML model metadata (metrics, feature importances) by reading metrics.json
-files written by the training scripts, and proxies prediction requests to the
-standalone ml-models inference service.
+Exposes Random Forest model metadata (metrics, feature importances) from the
+artifacts baked into the Docker image at build time, and handles prediction
+requests in-process using RFPredictor.
 """
 
 import json
 import logging
 import os
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from ...auth.dependencies import get_current_user
+from ...ml.predictor import ARTIFACTS_DIR as _ARTIFACTS_DIR
+from ...ml.predictor import PodMetrics, RFPredictor
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# ── Configuration ──────────────────────────────────────────────────────────────
+# ── Registry (single trained model) ───────────────────────────────────────────
 
-# Path where ./ml-models/models/ is bind-mounted (read-only) into the backend.
-ML_MODELS_DIR = os.getenv("ML_MODELS_DIR", "/app/ml_models_data")
-
-# Internal Docker hostname for the ml-models FastAPI inference service.
-ML_MODELS_API_URL = os.getenv("ML_MODELS_API_URL", "http://ml-models:8000")
-
-# Registry: (key used in API) → (subdirectory name, display info)
 _REGISTRY = [
     {
         "key": "random_forest",
         "display_name": "Random Forest",
-        "algorithm": "RandomForestClassifier (200 trees, balanced)",
-        "dir": "random_forest",
-        "endpoint": "random-forest",
-    },
-    {
-        "key": "xgboost",
-        "display_name": "XGBoost",
-        "algorithm": "XGBClassifier (300 trees, lr=0.05, hist)",
-        "dir": "xgboost_model",
-        "endpoint": "xgboost",
-    },
-    {
-        "key": "lstm",
-        "display_name": "LSTM",
-        "algorithm": "Stacked LSTM (2 layers, hidden=64, dropout=0.3)",
-        "dir": "lstm_model",
-        "endpoint": "lstm",
+        "algorithm": "RandomForestClassifier (200 trees, balanced weights)",
     },
 ]
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _read_metrics(model_dir: str) -> Optional[Dict[str, Any]]:
-    """Read metrics.json for a model; return None if not found or unreadable."""
-    path = Path(ML_MODELS_DIR) / model_dir / "metrics.json"
-    if not path.exists():
+def _read_metrics() -> Optional[Dict[str, Any]]:
+    """Read metrics.json saved by train.py; return None if unavailable."""
+    path = os.path.join(_ARTIFACTS_DIR, "metrics.json")
+    if not os.path.exists(path):
         return None
     try:
-        with open(path) as f:
-            return json.load(f)
-    except json.JSONDecodeError as exc:
-        logger.error("Corrupt metrics.json for %s: %s", model_dir, exc)
-        return None
-    except OSError as exc:
-        logger.error("Cannot read metrics.json for %s: %s", model_dir, exc)
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.error("Cannot read metrics.json: %s", exc)
         return None
 
 
@@ -117,76 +91,83 @@ class PodMetricsInput(BaseModel):
 @router.get("/models", response_model=Dict[str, Any])
 async def list_models(current_user: dict = Depends(get_current_user)):
     """
-    Return metadata and performance metrics for all three ML models.
-    Models that haven't been trained yet return `trained: false`.
+    Return metadata and performance metrics for the Random Forest model.
     """
-    result: List[Dict[str, Any]] = []
+    raw = _read_metrics()
+    entry = _REGISTRY[0]
 
-    for entry in _REGISTRY:
-        raw = _read_metrics(entry["dir"])
-        if raw:
-            fi = raw.get("feature_importances")
-            result.append({
-                "key": entry["key"],
-                "display_name": entry["display_name"],
-                "algorithm": entry["algorithm"],
-                "trained": True,
-                "trained_at": raw.get("trained_at"),
-                "metrics": {
-                    "accuracy": raw.get("accuracy"),
-                    "precision": raw.get("precision"),
-                    "recall": raw.get("recall"),
-                    "f1": raw.get("f1"),
-                    "roc_auc": raw.get("roc_auc"),
-                    "confusion_matrix": raw.get("confusion_matrix"),
-                    "feature_importances": fi,
-                },
-            })
-        else:
-            result.append({
-                "key": entry["key"],
-                "display_name": entry["display_name"],
-                "algorithm": entry["algorithm"],
-                "trained": False,
-                "trained_at": None,
-                "metrics": None,
-            })
+    if raw:
+        fi = raw.get("feature_importances")
+        model_data: Dict[str, Any] = {
+            "key": entry["key"],
+            "display_name": entry["display_name"],
+            "algorithm": entry["algorithm"],
+            "trained": True,
+            "trained_at": raw.get("trained_at"),
+            "metrics": {
+                "accuracy":            raw.get("accuracy"),
+                "precision":           raw.get("precision"),
+                "recall":              raw.get("recall"),
+                "f1":                  raw.get("f1"),
+                "roc_auc":             raw.get("roc_auc"),
+                "confusion_matrix":    raw.get("confusion_matrix"),
+                "feature_importances": fi,
+            },
+        }
+    else:
+        model_data = {
+            "key":          entry["key"],
+            "display_name": entry["display_name"],
+            "algorithm":    entry["algorithm"],
+            "trained":      RFPredictor.is_available(),
+            "trained_at":   None,
+            "metrics":      None,
+        }
 
-    return {"models": result}
+    return {"models": [model_data]}
 
 
 @router.post("/models/predict/{model_key}", response_model=Dict[str, Any])
-async def predict_with_model(model_key: str, metrics: PodMetricsInput, current_user: dict = Depends(get_current_user)):
+async def predict_with_model(
+    model_key: str,
+    metrics: PodMetricsInput,
+    current_user: dict = Depends(get_current_user),
+):
     """
-    Proxy a prediction request to the ml-models inference service.
-    model_key: one of 'random_forest', 'xgboost', or 'lstm'.
+    Run a pod failure prediction using the Random Forest model.
     """
-    entry = next((e for e in _REGISTRY if e["key"] == model_key), None)
-    if entry is None:
+    if model_key != "random_forest":
         raise HTTPException(
             status_code=404,
-            detail=f"Unknown model key '{model_key}'. Valid: random_forest, xgboost, lstm.",
+            detail=f"Unknown model key '{model_key}'. Valid: random_forest.",
         )
 
-    url = f"{ML_MODELS_API_URL}/predict/{entry['endpoint']}"
+    predictor = RFPredictor.get()
+    if predictor is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Random Forest model artifacts are unavailable. "
+                "The model may not have been trained before deployment."
+            ),
+        )
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        try:
-            resp = await client.post(url, json=metrics.model_dump())
-            resp.raise_for_status()
-            return resp.json()
-        except httpx.ConnectError:
-            raise HTTPException(
-                status_code=503,
-                detail="ML models service is unavailable. Start it with docker compose up.",
-            )
-        except httpx.TimeoutException:
-            raise HTTPException(
-                status_code=503,
-                detail="ML models service timed out. The model may still be loading.",
-            )
-        except httpx.HTTPStatusError as exc:
-            raise HTTPException(
-                status_code=exc.response.status_code,
-                detail=exc.response.text,
-            )
+    pod_metrics = PodMetrics(
+        cpu_usage=metrics.cpu_usage,
+        memory_usage=metrics.memory_usage,
+        disk_usage=metrics.disk_usage,
+        network_latency=metrics.network_latency,
+        restart_count=metrics.restart_count,
+        probe_failures=metrics.probe_failures,
+        node_cpu_pressure=metrics.node_cpu_pressure,
+        node_memory_pressure=metrics.node_memory_pressure,
+        pod_age_minutes=metrics.pod_age_minutes,
+    )
+
+    result = predictor.predict(pod_metrics)
+    return {
+        "model":      "random_forest",
+        "prediction": result.prediction,
+        "label":      result.label,
+        "confidence": result.confidence,
+    }
