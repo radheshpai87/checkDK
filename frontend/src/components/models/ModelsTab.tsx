@@ -62,7 +62,7 @@ export default function ModelsTab({ token }: { token: string }) {
             <p className="font-semibold mb-1">Failed to load model metadata</p>
             <p className="text-red-400 text-xs font-mono">{error}</p>
             <p className="text-slate-500 text-xs mt-2">
-              Make sure the backend and ml-models services are running, and models have been trained.
+              Make sure the backend is running and the model has been trained.
             </p>
           </div>
         </div>
