@@ -206,30 +206,65 @@ jobs:
 
       - name: Publish @checkdk/cli-linux-x64
         working-directory: npm/@checkdk/cli-linux-x64
-        run: npm publish --access public
+        run: |
+          VERSION=$(node -e "console.log(require('./package.json').version)")
+          PKG=$(node -e "console.log(require('./package.json').name)")
+          if npm view "${PKG}@${VERSION}" version 2>/dev/null | grep -q "${VERSION}"; then
+            echo "${PKG}@${VERSION} already published — skipping"
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @checkdk/cli-linux-arm64
         working-directory: npm/@checkdk/cli-linux-arm64
-        run: npm publish --access public
+        run: |
+          VERSION=$(node -e "console.log(require('./package.json').version)")
+          PKG=$(node -e "console.log(require('./package.json').name)")
+          if npm view "${PKG}@${VERSION}" version 2>/dev/null | grep -q "${VERSION}"; then
+            echo "${PKG}@${VERSION} already published — skipping"
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @checkdk/cli-darwin-arm64
         working-directory: npm/@checkdk/cli-darwin-arm64
-        run: npm publish --access public
+        run: |
+          VERSION=$(node -e "console.log(require('./package.json').version)")
+          PKG=$(node -e "console.log(require('./package.json').name)")
+          if npm view "${PKG}@${VERSION}" version 2>/dev/null | grep -q "${VERSION}"; then
+            echo "${PKG}@${VERSION} already published — skipping"
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @checkdk/cli-win32-x64
         working-directory: npm/@checkdk/cli-win32-x64
-        run: npm publish --access public
+        run: |
+          VERSION=$(node -e "console.log(require('./package.json').version)")
+          PKG=$(node -e "console.log(require('./package.json').name)")
+          if npm view "${PKG}@${VERSION}" version 2>/dev/null | grep -q "${VERSION}"; then
+            echo "${PKG}@${VERSION} already published — skipping"
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @checkdk/cli
         working-directory: npm/@checkdk/cli
-        run: npm publish --access public
+        run: |
+          VERSION=$(node -e "console.log(require('./package.json').version)")
+          PKG=$(node -e "console.log(require('./package.json').name)")
+          if npm view "${PKG}@${VERSION}" version 2>/dev/null | grep -q "${VERSION}"; then
+            echo "${PKG}@${VERSION} already published — skipping"
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
