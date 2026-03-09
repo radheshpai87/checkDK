@@ -2,11 +2,11 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 
 const Installation = () => {
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
 
-  const copyToClipboard = (text: string, index: number) => {
+  const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
-    setCopiedIndex(index);
+    setCopiedIndex(key);
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
@@ -37,29 +37,50 @@ const Installation = () => {
   const steps = [
     {
       number: "1",
-      title: "Install via npm",
-      code: "npm install -g @checkdk/cli",
-      description: "Install checkDK from npm"
+      title: "Install checkDK",
+      description: "Choose your preferred package manager",
+      subSteps: [
+        {
+          label: "via npm",
+          code: "npm install -g @checkdk/cli",
+        },
+        {
+          label: "via pipx",
+          code: "pipx install checkdk-cli",
+        }
+      ]
     },
     {
       number: "2",
-      title: "OR Install via pipx",
-      code: "pipx install checldk-cli",
-      description: "Install checkDK from pipx"
-    },
-    {
-      number: "3",
-      title: "authenticate",
+      title: "Authenticate",
       code: "checkdk auth login",
       description: "Authenticate using GitHub or Google to start using checkDK"
     },
     {
-      number: "4",
+      number: "3",
       title: "Start using it",
       code: "checkdk playground -f docker-compose.yml",
-      description: "start with a few commands listed in our npmjs page to get started!"
+      description: "Start with a few commands listed in our npmjs page to get started!"
     }
   ];
+
+  const CopyButton = ({ code, copyKey }: { code: string; copyKey: string }) => (
+    <button
+      onClick={() => copyToClipboard(code, copyKey)}
+      className="flex-shrink-0 ml-3 p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700 opacity-0 group-hover/code:opacity-100 transition-all duration-200"
+      title="Copy to clipboard"
+    >
+      {copiedIndex === copyKey ? (
+        <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      ) : (
+        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      )}
+    </button>
+  );
 
   return (
     <section id="installation" className="py-24 px-6 bg-slate-950">
@@ -112,7 +133,7 @@ const Installation = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h3 className="text-3xl font-semibold mb-10 text-center text-slate-100">Installation Steps via npm or pipx    </h3>
+          <h3 className="text-3xl font-semibold mb-10 text-center text-slate-100">Installation Steps</h3>
           <div className="space-y-6">
             {steps.map((step, index) => (
               <motion.div
@@ -129,30 +150,41 @@ const Installation = () => {
                     <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold shadow-lg">
                       {step.number}
                     </div>
-                    
+
                     <div className="flex-1">
-                      <h4 className="text-xl font-semibold mb-2 text-white">{step.title}</h4>
+                      <h4 className="text-xl font-semibold mb-1 text-white">{step.title}</h4>
                       <p className="text-slate-400 text-sm mb-4">{step.description}</p>
-                      <div className="relative bg-slate-950 rounded-xl border border-slate-800 group/code">
-                        <div className="flex items-center justify-between p-4 pr-3">
-                          <code className="text-cyan-400 font-mono text-base flex-1">{step.code}</code>
-                          <button
-                            onClick={() => copyToClipboard(step.code, index)}
-                            className="flex-shrink-0 ml-3 p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700 opacity-0 group-hover/code:opacity-100 transition-all duration-200"
-                            title="Copy to clipboard"
-                          >
-                            {copiedIndex === index ? (
-                              <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                              </svg>
-                            ) : (
-                              <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                              </svg>
-                            )}
-                          </button>
+
+                      {/* Sub-steps for step 1 */}
+                      {'subSteps' in step && step.subSteps ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {step.subSteps.map((sub, subIndex) => (
+                            <div key={subIndex} className="flex flex-col gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+                                  {sub.label}
+                                </span>
+                              </div>
+                              <div className="relative bg-slate-950 rounded-xl border border-slate-800 group/code">
+                                <div className="flex items-center justify-between p-4 pr-3">
+                                  <code className="text-cyan-400 font-mono text-sm flex-1">{sub.code}</code>
+                                  <CopyButton code={sub.code} copyKey={`${index}-${subIndex}`} />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      </div>
+                      ) : (
+                        /* Regular single-code steps */
+                        'code' in step && (
+                          <div className="relative bg-slate-950 rounded-xl border border-slate-800 group/code">
+                            <div className="flex items-center justify-between p-4 pr-3">
+                              <code className="text-cyan-400 font-mono text-base flex-1">{step.code}</code>
+                              <CopyButton code={step.code as string} copyKey={`${index}`} />
+                            </div>
+                          </div>
+                        )
+                      )}
                     </div>
                   </div>
                 </div>
@@ -162,7 +194,7 @@ const Installation = () => {
         </motion.div>
       </div>
     </section>
-  )
-}
+  );
+};
 
-export default Installation
+export default Installation;
