@@ -43,12 +43,18 @@ const Installation = () => {
     },
     {
       number: "2",
+      title: "OR Install via pipx",
+      code: "pipx install checldk-cli",
+      description: "Install checkDK from pipx"
+    },
+    {
+      number: "3",
       title: "authenticate",
       code: "checkdk auth login",
       description: "Authenticate using GitHub or Google to start using checkDK"
     },
     {
-      number: "3",
+      number: "4",
       title: "Start using it",
       code: "checkdk playground -f docker-compose.yml",
       description: "start with a few commands listed in our npmjs page to get started!"
@@ -106,7 +112,7 @@ const Installation = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
         >
-          <h3 className="text-3xl font-semibold mb-10 text-center text-slate-100">Installation Steps</h3>
+          <h3 className="text-3xl font-semibold mb-10 text-center text-slate-100">Installation Steps via npm or pipx    </h3>
           <div className="space-y-6">
             {steps.map((step, index) => (
               <motion.div
