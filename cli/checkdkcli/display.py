@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
-from rich.console import Console
+import re
+
+from rich.console import Console, Group
+from rich.markdown import Markdown
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 console = Console()
 
@@ -57,18 +62,20 @@ def display_analysis_result(result: dict) -> None:
                 if is_ai:
                     console.print("\n   [bold green]💡 AI-Enhanced Fix:[/]")
                     if fix.get("explanation"):
-                        console.print(f"   [yellow]{fix['explanation']}[/]\n")
+                        console.print(Markdown(fix["explanation"]))
                     if fix.get("root_cause"):
-                        console.print(f"   [bold cyan]Root Cause:[/] {fix['root_cause']}\n")
-                    console.print("   [bold cyan]Steps:[/]")
-                    for step in fix.get("steps", []):
-                        console.print(f"   • {step}")
+                        console.print("   [bold cyan]Root Cause:[/]")
+                        console.print(Markdown(fix["root_cause"]))
+                    if fix.get("steps"):
+                        console.print("   [bold cyan]Steps:[/]")
+                        for step in fix.get("steps", []):
+                            console.print(f"   • {escape(step)}")
                 else:
                     console.print("\n   [bold green]💡 Fix:[/]")
                     if fix.get("description"):
-                        console.print(f"   [dim]{fix['description']}[/]")
+                        console.print(Markdown(fix["description"]))
                     for step in fix.get("steps", []):
-                        console.print(f"   [cyan]{step}[/]")
+                        console.print(f"   [cyan]→[/] {escape(step)}")
 
     if warnings:
         console.print("\n[bold yellow]⚠ Warnings:[/]")
@@ -128,22 +135,99 @@ def display_predict_result(resp: dict, service: str | None, platform: str) -> No
     if not assessment:
         return
 
-    ai_table = Table.grid(padding=(0, 1))
-    ai_table.add_column(style="bold cyan", no_wrap=True)
-    ai_table.add_column()
+    def _recover_sections(a: dict) -> dict:
+        """Client-side recovery for when the backend parser falls back to
+        dumping the raw LLM text into assessment['assessment'].
 
-    if assessment.get("assessment"):
-        ai_table.add_row("Assessment:", assessment["assessment"])
-        ai_table.add_row("", "")
-    if assessment.get("root_cause"):
-        ai_table.add_row("Root Cause:", assessment["root_cause"])
-        ai_table.add_row("", "")
-    if assessment.get("recommendations"):
-        ai_table.add_row("Actions:", "")
-        for i, rec in enumerate(assessment["recommendations"], 1):
-            ai_table.add_row(f"  {i}.", rec)
+        Detects embedded ## / **Label**: section markers and splits them out
+        into the correct keys so the display is always structured correctly.
+        """
+        raw = a.get("assessment", "")
+        # Only attempt recovery when root_cause is missing and the assessment
+        # text looks like it contains multiple embedded sections.
+        section_pattern = re.compile(
+            r"(?:^#{1,6}\s+|\*{1,2})?(assessment|root\s*cause|recommendation)",
+            re.IGNORECASE | re.MULTILINE,
+        )
+        if a.get("root_cause") or not section_pattern.search(raw):
+            return a  # already structured or no sections embedded — nothing to do
 
-    console.print(Panel(ai_table, title="💡 LLM Health Assessment", border_style="cyan"))
+        # Split on ## Header or **Header**: boundaries
+        parts = re.split(
+            r"\n?\s*(?:#{1,6}\s+|\*{1,2})(Assessment|Root\s*Cause|Recommendations?)"
+            r"(?:\*{1,2})?\s*:?\s*\n?",
+            raw,
+            flags=re.IGNORECASE,
+        )
+
+        recovered: dict = {"assessment": "", "root_cause": "", "recommendations": []}
+        i = 0
+        # parts is [pre-text, label, content, label, content, ...]
+        if parts and not re.search(r"assessment|root|recommend", parts[0], re.IGNORECASE):
+            i = 0  # skip leading empty / pre-text
+        while i < len(parts) - 1:
+            label = parts[i].strip().lower() if i < len(parts) else ""
+            content = parts[i + 1].strip() if i + 1 < len(parts) else ""
+            if "assessment" in label:
+                recovered["assessment"] = content
+                i += 2
+            elif "root" in label:
+                recovered["root_cause"] = content
+                i += 2
+            elif "recommend" in label:
+                for line in content.splitlines():
+                    line = line.strip()
+                    clean = re.sub(r"^[-•*\d.)]+\s*", "", line).strip()
+                    if clean:
+                        recovered["recommendations"].append(clean)
+                i += 2
+            else:
+                i += 1
+
+        # Preserve original if recovery produced nothing useful
+        if not recovered["assessment"] and not recovered["root_cause"]:
+            return a
+        # Keep any recommendations already parsed by the backend
+        if not recovered["recommendations"] and a.get("recommendations"):
+            recovered["recommendations"] = a["recommendations"]
+        return recovered
+
+    def _clean(text: str) -> str:
+        """Strip stray ## headers and leading **Label**: markers from a field."""
+        text = re.sub(r"^\s*#{1,6}\s+\S.*$", "", text, flags=re.MULTILINE)
+        text = re.sub(r"^\s*\*{1,2}[^*]+\*{1,2}\s*:\s*", "", text.strip())
+        return text.strip()
+
+    a = _recover_sections(assessment)
+
+    parts: list = []
+
+    if a.get("assessment"):
+        parts.append(Text("Assessment", style="bold cyan"))
+        parts.append(Markdown(_clean(a["assessment"])))
+        parts.append(Text(""))
+
+    if a.get("root_cause"):
+        parts.append(Text("Root Cause", style="bold cyan"))
+        parts.append(Markdown(_clean(a["root_cause"])))
+        parts.append(Text(""))
+
+    if a.get("recommendations"):
+        parts.append(Text("What You Can Do", style="bold cyan"))
+        rec_lines = "\n".join(
+            f"{i}. {_clean(rec)}" for i, rec in enumerate(a["recommendations"], 1)
+        )
+        parts.append(Markdown(rec_lines))
+
+    if parts:
+        console.print(
+            Panel(
+                Group(*parts),
+                title="💡 LLM Health Assessment",
+                border_style="cyan",
+                expand=True,
+            )
+        )
 
 
 # ── Playground display ────────────────────────────────────────────────────────
@@ -206,16 +290,19 @@ def display_playground_result(result: dict, file_path: str = "") -> None:
             if fix:
                 steps = fix.get("steps") or []
                 if fix.get("explanation"):
-                    console.print(f"   [bold green]💡[/] {fix['explanation']}")
+                    console.print("   [bold green]💡 Fix:[/]")
+                    console.print(Markdown(fix["explanation"]))
+                elif steps:
+                    console.print("   [bold green]💡 Fix:[/]")
                 for step in steps:
-                    console.print(f"   [cyan]→[/] {step}")
+                    console.print(f"   [cyan]→[/] {escape(step)}")
 
     # AI highlights
     highlights = result.get("highlights", [])
     if highlights:
         console.print("\n[bold cyan]💡 AI Highlights:[/]")
         for hl in highlights:
-            console.print(f"  [cyan]•[/] {hl}")
+            console.print(Markdown(hl))
 
 
 # ── Monitor display helper ────────────────────────────────────────────────────
