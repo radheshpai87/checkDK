@@ -4,9 +4,10 @@
 
 Catch port conflicts, security misconfigurations, missing health probes, and more before they cost you time in production. Upload a config file, get an instant analysis with AI-generated fix suggestions, and keep a searchable history of every scan.
 
-[![Website](https://img.shields.io/badge/website-checkdk.app-4f46e5)](https://checkdk.app)
-[![npm](https://img.shields.io/npm/v/%40checkdk%2Fcli?label=npm&color=cb3837)](https://www.npmjs.com/package/@checkdk/cli)
-[![PyPI](https://img.shields.io/pypi/v/checkdk-cli?label=PyPI&color=3775a9)](https://pypi.org/project/checkdk-cli/)
+[![Website](https://img.shields.io/badge/Website-checkdk.app-4f46e5?style=for-the-badge&logo=googlechrome&logoColor=white)](https://checkdk.app)
+[![npm](https://img.shields.io/npm/v/@checkdk/cli?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/@checkdk/cli)
+[![PyPI](https://img.shields.io/pypi/v/checkdk-cli?style=for-the-badge&logo=python&logoColor=white)](https://pypi.org/project/checkdk-cli/)
+[![License](https://img.shields.io/github/license/radheshpai87/checkDK?style=for-the-badge)](LICENSE)
 
 ---
 
