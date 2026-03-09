@@ -198,23 +198,28 @@ def monitor_docker(container: str, duration: int, interval: int, no_ai: bool) ->
 @click.argument("pod")
 @click.option("--namespace", "-n", default="default", show_default=True)
 @click.option("--duration", default=0, type=int, help="Stop after N seconds (0 = Ctrl-C)")
-@click.option("--interval", default=5, show_default=True, type=int)
+@click.option("--interval", default=15, show_default=True, type=int,
+              help="Polling interval in seconds (k8s metrics-server refreshes every ~15-60s)")
 @click.option("--no-ai", is_flag=True, default=False,
               help="Skip LLM analysis (faster, ML prediction only)")
 def monitor_k8s(pod: str, namespace: str, duration: int, interval: int, no_ai: bool) -> None:
     """Stream live Kubernetes pod metrics and predict failure risk.
 
+    Note: kubectl top data is sourced from metrics-server which refreshes every
+    15-60 seconds. Use --interval 15 or higher to avoid reading stale values.
+
     \b
     Example:
         checkdk monitor k8s my-pod -n production
         checkdk monitor k8s api-pod --duration 120
-        checkdk monitor k8s api-pod --no-ai
+        checkdk monitor k8s api-pod --no-ai --interval 15
     """
     api_url = get_api_url()
     history: list[dict] = []
     start = time.time()
 
     _console.print(f"[bold]Monitoring pod:[/] [cyan]{pod}[/] (ns: {namespace})  [dim]{api_url}/predict[/]")
+    _console.print(f"[dim]Polling every {interval}s (metrics-server refresh lag: ~15-60s)[/]")
     _console.print("[dim]Press Ctrl-C to stop.[/]\n")
 
     try:
