@@ -137,7 +137,9 @@ export default function DocsTab() {
   const [active, setActive] = useState('installation');
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Track active section via IntersectionObserver
+  // Track active section via IntersectionObserver + scroll fallback for
+  // bottom-of-page sections (Roadmap, Architecture) that may never satisfy
+  // the rootMargin intersection because there isn't enough content below them.
   useEffect(() => {
     const observers: IntersectionObserver[] = [];
     NAV.forEach(({ id }) => {
@@ -145,12 +147,32 @@ export default function DocsTab() {
       if (!el) return;
       const obs = new IntersectionObserver(
         ([entry]) => { if (entry.isIntersecting) setActive(id); },
-        { rootMargin: '-20% 0px -60% 0px', threshold: 0 }
+        { rootMargin: '-10% 0px -40% 0px', threshold: 0 }
       );
       obs.observe(el);
       observers.push(obs);
     });
-    return () => observers.forEach(o => o.disconnect());
+
+    // Fallback: when scrolled near the bottom, activate the last visible section
+    const handleScroll = () => {
+      const scrollBottom = window.innerHeight + window.scrollY;
+      const docHeight = document.documentElement.scrollHeight;
+      if (docHeight - scrollBottom < 200) {
+        // Near bottom — find the last section that exists
+        for (let i = NAV.length - 1; i >= 0; i--) {
+          if (document.getElementById(NAV[i].id)) {
+            setActive(NAV[i].id);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      observers.forEach(o => o.disconnect());
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   const scrollTo = (id: string) => {
