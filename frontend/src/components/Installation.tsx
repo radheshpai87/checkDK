@@ -37,21 +37,21 @@ const Installation = () => {
   const steps = [
     {
       number: "1",
-      title: "Install via pip",
-      code: "pip install checkdk",
-      description: "Install checkDK from PyPI"
+      title: "Install via npm",
+      code: "npm install -g @checkdk/cli",
+      description: "Install checkDK from npm"
     },
     {
       number: "2",
-      title: "Verify installation",
-      code: "checkdk --version",
-      description: "Confirm checkDK is installed correctly"
+      title: "authenticate",
+      code: "checkdk auth login",
+      description: "Authenticate using GitHub or Google to start using checkDK"
     },
     {
       number: "3",
       title: "Start using it",
-      code: "checkdk docker compose up",
-      description: "Begin validating your Docker and Kubernetes commands"
+      code: "checkdk playground -f docker-compose.yml",
+      description: "start with a few commands listed in our npmjs page to get started!"
     }
   ];
 
