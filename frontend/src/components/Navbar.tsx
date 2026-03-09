@@ -18,6 +18,7 @@ type NavItem = {
 const NAV_ITEMS_UNAUTHENTICATED: NavItem[] = [
   { label: 'Features', landingHref: '#features', demoHref: '/#features' },
   { label: 'Playground', landingHref: '/demo#playground', demoHref: '#playground' },
+  { label: 'Docs', landingHref: '/docs', demoHref: '/docs' },
   { label: 'Install', landingHref: '#installation', demoHref: '/#installation' },
   { label: 'Usage', landingHref: '#usage', demoHref: '/#usage' },
 ];

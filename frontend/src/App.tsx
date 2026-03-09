@@ -19,6 +19,7 @@ import DemoPage from './pages/DemoPage'
 import LoginPage from './pages/LoginPage'
 import AuthCallbackPage from './pages/AuthCallbackPage'
 import AppDashboardPage from './pages/AppDashboardPage'
+import DocsPage from './pages/DocsPage'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -147,6 +148,7 @@ function App() {
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<LandingPage />} />
           <Route path="/demo" element={<DemoPage />} />
+          <Route path="/docs" element={<DocsPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route
