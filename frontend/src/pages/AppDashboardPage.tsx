@@ -33,6 +33,7 @@ import { fetchUserHistory, fetchUserPatterns } from '../lib/api';
 import type { HistoryItem, PatternItem } from '../lib/api';
 import Playground from '../components/playground/Playground';
 import ModelsTab from '../components/models/ModelsTab';
+import DocsTab from '../components/dashboard/DocsTab';
 
 // ── Score badge ────────────────────────────────────────────────────────────────
 
@@ -273,7 +274,7 @@ function UserMenu({ onLogout }: { onLogout: () => void }) {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
-type Tab = 'playground' | 'history' | 'models';
+type Tab = 'playground' | 'history' | 'models' | 'docs';
 
 export default function AppDashboardPage() {
   const { user, token, logout } = useAuth();
@@ -298,7 +299,7 @@ export default function AppDashboardPage() {
 
           {/* Tabs */}
           <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-xl p-1">
-            {(['playground', 'history', 'models'] as Tab[]).map((tab) => (
+            {(['playground', 'history', 'models', 'docs'] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -308,7 +309,7 @@ export default function AppDashboardPage() {
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                {tab === 'playground' ? 'Playground' : tab === 'history' ? 'History' : 'Models'}
+                {tab === 'playground' ? 'Playground' : tab === 'history' ? 'History' : tab === 'models' ? 'Models' : 'Docs'}
               </button>
             ))}
           </div>
@@ -386,6 +387,26 @@ export default function AppDashboardPage() {
               </div>
               <ErrorBoundary>
                 <ModelsTab token={token!} />
+              </ErrorBoundary>
+            </motion.div>
+          )}
+
+          {activeTab === 'docs' && (
+            <motion.div
+              key="docs"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-4">
+                <h2 className="text-2xl font-bold text-white mb-1">Documentation</h2>
+                <p className="text-slate-400 text-sm">
+                  Installation guides, CLI reference, API endpoints, and ML prediction docs.
+                </p>
+              </div>
+              <ErrorBoundary>
+                <DocsTab />
               </ErrorBoundary>
             </motion.div>
           )}

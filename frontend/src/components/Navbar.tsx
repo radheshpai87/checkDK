@@ -152,8 +152,8 @@ const Navbar = () => {
             </motion.div>
 
             {/* Desktop Nav Links */}
-            <div className="hidden md:flex items-center gap-0.5 min-w-0 flex-shrink">
-              {navItems.map((item) => {
+            <div className="hidden md:flex items-center gap-0.5 min-w-0 flex-shrink overflow-hidden">
+              {navItems.filter(item => !(isDemo && !isAuthenticated && item.label === 'Install')).map((item) => {
                 const href = getHref(item);
                 const isActive = getIsActive(item);
                 const isCrossRoute = href.startsWith('/');
