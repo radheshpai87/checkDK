@@ -212,47 +212,64 @@ Be concise and practical. Focus on the highest-impact metrics."""
 
     @staticmethod
     def _parse_pod_health_response(response: str) -> dict:
-        """Parse a free-text pod health response into structured dict."""
+        """Parse a free-text pod health response into structured dict.
+
+        Handles both inline style  (``**Assessment**: text``)
+        and block style           (``## Assessment\n\ntext…``)
+        and accumulates multi-line content for each section.
+        """
+        _strip_md_markers = lambda s: re.sub(r"\*{1,2}([^*]+)\*{1,2}", r"\1", s).strip()
+
         lines = response.strip().split("\n")
         result: dict = {"assessment": "", "root_cause": "", "recommendations": []}
         current_section: str | None = None
+        section_lines: dict = {"assessment": [], "root_cause": []}
 
         for line in lines:
-            line = line.strip()
-            if not line:
+            stripped = line.strip()
+            if not stripped:
                 continue
-            lower = line.lower()
-            if "assessment" in lower and ":" in line:
+            lower = stripped.lower()
+            # Detect section header regardless of colon or ## prefix
+            is_header = ":" in stripped or stripped.startswith("#") or stripped.startswith("**")
+            if "assessment" in lower and is_header and "root cause" not in lower:
                 current_section = "assessment"
-                parts = line.split(":", 1)
-                if len(parts) > 1 and parts[1].strip():
-                    result["assessment"] = parts[1].strip()
-            elif "root cause" in lower and ":" in line:
+                if ":" in stripped:
+                    inline = stripped.split(":", 1)[1].strip()
+                    inline = _strip_md_markers(inline)
+                    if inline:
+                        section_lines["assessment"].append(inline)
+            elif "root cause" in lower and is_header:
                 current_section = "root_cause"
-                parts = line.split(":", 1)
-                if len(parts) > 1 and parts[1].strip():
-                    result["root_cause"] = parts[1].strip()
-            elif "recommendation" in lower and ":" in line:
+                if ":" in stripped:
+                    inline = stripped.split(":", 1)[1].strip()
+                    inline = _strip_md_markers(inline)
+                    if inline:
+                        section_lines["root_cause"].append(inline)
+            elif "recommendation" in lower and is_header:
                 current_section = "recommendations"
-            elif current_section == "recommendations" and (
-                line.startswith("-")
-                or line.startswith("•")
-                or line.startswith("*")
-                or (len(line) > 0 and line[0].isdigit())
-            ):
-                clean = line.lstrip("-•*0123456789. ").strip()
-                if clean:
-                    result["recommendations"].append(clean)
-            elif current_section in ("assessment", "root_cause") and not any(
-                x in lower for x in ("assessment", "root cause", "recommendation")
-            ):
-                if current_section == "assessment" and not result["assessment"]:
-                    result["assessment"] = line
-                elif current_section == "root_cause" and not result["root_cause"]:
-                    result["root_cause"] = line
+            elif current_section == "recommendations":
+                if (
+                    stripped.startswith("-")
+                    or stripped.startswith("•")
+                    or stripped.startswith("*")
+                    or (stripped and stripped[0].isdigit())
+                ):
+                    clean = re.sub(r"^[-•*\d.)\s]+", "", stripped).strip()
+                    clean = _strip_md_markers(clean)
+                    if clean:
+                        result["recommendations"].append(clean)
+            elif current_section in ("assessment", "root_cause"):
+                if not any(x in lower for x in ("assessment", "root cause", "recommendation")):
+                    section_lines[current_section].append(_strip_md_markers(stripped))
+
+        result["assessment"] = " ".join(section_lines["assessment"]).strip()
+        result["root_cause"] = " ".join(section_lines["root_cause"]).strip()
 
         if not result["assessment"]:
-            result["assessment"] = response[:250]
+            # Fallback: strip ## headers then use first 300 chars
+            clean_response = re.sub(r"^#+\s+.*$", "", response, flags=re.MULTILINE).strip()
+            result["assessment"] = clean_response[:300]
         return result
 
     @staticmethod
@@ -324,7 +341,7 @@ class MistralProvider(AIProvider):
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.3,
-                max_tokens=400,
+                max_tokens=700,
             )
             text = response.choices[0].message.content or ""
             return self._parse_pod_health_response(text)
@@ -417,7 +434,7 @@ class GroqProvider(AIProvider):
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.3,
-                max_tokens=400,
+                max_tokens=700,
             )
             text = response.choices[0].message.content or ""
             return self._parse_pod_health_response(text)
