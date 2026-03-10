@@ -27,15 +27,64 @@ No configuration required — the CLI talks to `https://checkdk.app/api` by defa
 
 ---
 
+## Authentication (required)
+
+checkDK requires authentication before you can use any command (except `checkdk auth` and `checkdk init`).
+
+```bash
+# Sign in — opens your browser for GitHub/Google OAuth
+checkdk auth login
+```
+
+This starts a local callback server, opens the sign-in page in your browser,
+and receives the token automatically — no copy-pasting required.
+Once authenticated, your session is stored locally at `~/.checkdk/.env` and
+persists until you explicitly log out or the token expires (7 days).
+
+If you try to run any command without logging in first, the CLI will prompt:
+
+```
+Not logged in.
+Run checkdk auth login to authenticate with your GitHub or Google account.
+```
+
+```bash
+# Check who you're logged in as
+checkdk auth whoami
+
+# Log out (removes stored token)
+checkdk auth logout
+```
+
+---
+
+## Uninstall
+
+```bash
+# If installed with pipx
+pipx uninstall checkdk-cli
+
+# If installed with pip
+pip uninstall checkdk-cli
+
+# Optionally remove stored config and credentials
+rm -rf ~/.checkdk
+```
+
+---
+
 ## Commands
 
 ### Authentication
 
 ```bash
-checkdk auth login       # open browser → paste JWT token → saved to ~/.checkdk/.env
+checkdk auth login       # open browser → OAuth sign-in → token saved to ~/.checkdk/.env
 checkdk auth logout      # remove stored token
 checkdk auth whoami      # show current logged-in user
 ```
+
+> **Note:** You must be logged in to use any command other than `auth` and `init`.
+> If your session has expired, the CLI will prompt you to log in again.
 
 ### Docker
 
@@ -101,12 +150,12 @@ checkdk monitor k8s my-pod -n production
 checkdk monitor k8s my-pod -n production --no-ai
 ```
 
-| Option       | Default | Description                                   |
-| ------------ | ------- | --------------------------------------------- |
-| `--duration` | 60      | How long to monitor, in seconds               |
-| `--interval` | 5       | Seconds between each sample                   |
-| `--no-ai`    | —       | Skip LLM analysis, return ML risk score only  |
-| `-n`         | default | Kubernetes namespace (k8s only)               |
+| Option       | Default | Description                                  |
+| ------------ | ------- | -------------------------------------------- |
+| `--duration` | 60      | How long to monitor, in seconds              |
+| `--interval` | 5       | Seconds between each sample                  |
+| `--no-ai`    | —       | Skip LLM analysis, return ML risk score only |
+| `-n`         | default | Kubernetes namespace (k8s only)              |
 
 ### Chaos
 

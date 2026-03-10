@@ -73,6 +73,13 @@ HIDDEN_IMPORTS = [
     "socket",
     "subprocess",
     "threading",
+    # pkg_resources runtime hook pulls in jaraco.* and importlib_resources;
+    # these are missing in Python 3.14 frozen builds
+    "jaraco",
+    "jaraco.text",
+    "jaraco.functools",
+    "jaraco.context",
+    "importlib_resources",
 ]
 
 a = Analysis(
