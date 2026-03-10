@@ -50,19 +50,63 @@ function getErrorMessage(code: string | null): string | null {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function LoginPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, token } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [dismissedError, setDismissedError] = useState(false);
+  const [cliDone, setCliDone] = useState(false);
 
   const nextPath = searchParams.get('next') ?? '/app/dashboard';
+  const cliCallback = searchParams.get('cli_callback');
   const errorCode = searchParams.get('error');
   const errorMessage = getErrorMessage(errorCode);
 
-  // Already signed in → go straight to dashboard
+  // If the user is already signed in AND this is a CLI login request,
+  // send the existing token directly to the CLI's local callback server
+  // instead of redirecting to the dashboard.
   useEffect(() => {
-    if (isAuthenticated) navigate(nextPath, { replace: true });
-  }, [isAuthenticated, navigate, nextPath]);
+    if (isAuthenticated && cliCallback && token) {
+      // Save cli_callback to sessionStorage in case the user re-authenticates
+      sessionStorage.setItem('checkdk_cli_callback', cliCallback);
+      const dest = `${cliCallback}?token=${encodeURIComponent(token)}`;
+      fetch(dest)
+        .then(() => setCliDone(true))
+        .catch(() => {
+          // fetch may fail due to CORS on redirect — try as a navigation fallback
+          window.location.href = dest;
+        });
+      return;
+    }
+    // Normal case: already signed in with no CLI callback → go to dashboard
+    if (isAuthenticated && !cliCallback) navigate(nextPath, { replace: true });
+  }, [isAuthenticated, navigate, nextPath, cliCallback, token]);
+
+  // CLI token was sent successfully → show confirmation instead of login card
+  if (cliDone) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-500/15 rounded-full blur-[120px]" />
+        </div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className="flex flex-col items-center gap-5 text-center px-4"
+        >
+          <div className="w-14 h-14 rounded-2xl bg-green-500/20 border border-green-500/30 flex items-center justify-center">
+            <svg className="w-7 h-7 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-white font-semibold text-lg">Logged in to checkDK CLI</p>
+            <p className="text-slate-400 text-sm mt-1">You can close this tab and return to your terminal.</p>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">

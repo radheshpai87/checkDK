@@ -1,6 +1,6 @@
 {
   "name": "@checkdk/cli-linux-arm64",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "linux-arm64 binary for @checkdk/cli",
   "license": "MIT",
   "repository": {

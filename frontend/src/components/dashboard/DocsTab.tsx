@@ -239,9 +239,19 @@ export default function DocsTab() {
               The npm package ships a pre-compiled binary — no Python, no virtual env, no system dependencies. Works on Linux x64/arm64, macOS x64/arm64, and Windows x64.
             </Callout>
 
-            <SubHeading id="install-auth">Authenticate</SubHeading>
-            <p className="text-slate-400 text-sm mb-1">Sign in with GitHub or Google to unlock AI-powered analysis and history.</p>
+            <SubHeading id="install-auth">Authenticate (required)</SubHeading>
+            <p className="text-slate-400 text-sm mb-1">You <strong className="text-slate-200">must</strong> sign in before using the CLI. All commands (except <code className="text-cyan-300">auth</code> and <code className="text-cyan-300">init</code>) require authentication.</p>
             <CodeBlock code="checkdk auth login" />
+            <p className="text-slate-400 text-sm mb-1">This opens your browser for GitHub/Google OAuth and saves a JWT to <code className="text-cyan-300">~/.checkdk/.env</code> automatically — no copy-pasting needed. Your session persists until you log out or the token expires (7 days).</p>
+            <Callout type="warn">
+              If you try to run any command without logging in, the CLI will exit with: <em>"Not logged in. Run checkdk auth login to authenticate."</em> If your session has expired, you'll be prompted to re-authenticate.
+            </Callout>
+
+            <CodeBlock code={`# Check who you're logged in as
+checkdk auth whoami
+
+# Log out (removes stored token)
+checkdk auth logout`} />
 
             <SubHeading id="install-first">First analysis</SubHeading>
             <CodeBlock code={`# analyse a Docker Compose file
@@ -253,6 +263,19 @@ checkdk playground -f k8s-deployment.yaml`} />
             <Callout type="info">
               You can also paste your config at <strong>checkdk.app</strong> — no install needed. Sign in to save history.
             </Callout>
+
+            <SubHeading id="install-uninstall">Uninstall</SubHeading>
+            <CodeBlock code={`# npm
+npm uninstall -g @checkdk/cli
+
+# pipx
+pipx uninstall checkdk-cli
+
+# pip
+pip uninstall checkdk-cli
+
+# Optionally remove stored config and credentials
+rm -rf ~/.checkdk`} />
           </section>
 
           {/* ── OVERVIEW ─────────────────────────────────────────── */}
@@ -331,20 +354,21 @@ checkdk playground -f k8s-deployment.yaml`} />
           {/* ── CLI ──────────────────────────────────────────────── */}
           <section>
             <SectionHeading id="cli">CLI Reference</SectionHeading>
-            <p className="text-slate-400 text-sm mb-4">All commands delegate analysis to the backend API. The CLI is a thin HTTP/WebSocket client.</p>
+            <p className="text-slate-400 text-sm mb-4">All commands delegate analysis to the backend API. The CLI is a thin HTTP/WebSocket client. Commands marked <Badge color="amber">Auth</Badge> require <code className="text-cyan-300">checkdk auth login</code> first.</p>
 
             <DocTable
-              headers={['Command', 'Description']}
+              headers={['Command', 'Auth', 'Description']}
               rows={[
-                [<code className="text-cyan-300">checkdk auth login</code>,    'Open browser OAuth flow; saves JWT locally'],
-                [<code className="text-cyan-300">checkdk auth logout</code>,   'Remove local credentials'],
-                [<code className="text-cyan-300">checkdk auth whoami</code>,   'Print current authenticated user'],
-                [<code className="text-cyan-300">checkdk playground -f &lt;file&gt;</code>, 'Full AI analysis of a config file'],
-                [<code className="text-cyan-300">checkdk docker &lt;cmd&gt;</code>,  'Passthrough wrapper for docker commands'],
-                [<code className="text-cyan-300">checkdk kubectl &lt;cmd&gt;</code>, 'Passthrough wrapper for kubectl commands'],
-                [<code className="text-cyan-300">checkdk predict</code>,       'Run ML pod failure prediction interactively'],
-                [<code className="text-cyan-300">checkdk monitor</code>,       'Poll container metrics + show risk score'],
-                [<code className="text-cyan-300">checkdk chaos</code>,         'Chaos test helpers'],
+                [<code className="text-cyan-300">checkdk auth login</code>,    <Badge color="green">Public</Badge>, 'Open browser OAuth flow; saves JWT locally'],
+                [<code className="text-cyan-300">checkdk auth logout</code>,   <Badge color="green">Public</Badge>, 'Remove local credentials'],
+                [<code className="text-cyan-300">checkdk auth whoami</code>,   <Badge color="green">Public</Badge>, 'Print current authenticated user'],
+                [<code className="text-cyan-300">checkdk init</code>,          <Badge color="green">Public</Badge>, 'Configure API URL in ~/.checkdk/.env'],
+                [<code className="text-cyan-300">checkdk playground -f &lt;file&gt;</code>, <Badge color="amber">Auth</Badge>, 'Full AI analysis of a config file'],
+                [<code className="text-cyan-300">checkdk docker &lt;cmd&gt;</code>,  <Badge color="amber">Auth</Badge>, 'Passthrough wrapper for docker commands'],
+                [<code className="text-cyan-300">checkdk kubectl &lt;cmd&gt;</code>, <Badge color="amber">Auth</Badge>, 'Passthrough wrapper for kubectl commands'],
+                [<code className="text-cyan-300">checkdk predict</code>,       <Badge color="amber">Auth</Badge>, 'Run ML pod failure prediction interactively'],
+                [<code className="text-cyan-300">checkdk monitor</code>,       <Badge color="amber">Auth</Badge>, 'Poll container metrics + show risk score'],
+                [<code className="text-cyan-300">checkdk chaos</code>,         <Badge color="amber">Auth</Badge>, 'Chaos test helpers'],
               ]}
             />
 

@@ -17,18 +17,23 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from ..client import get_api_url, get_current_user, validate_token
+from ..client import get_api_url, get_frontend_url, get_current_user, validate_token
 
 _console = Console()
 _ENV_FILE = Path.home() / ".checkdk" / ".env"
 
 
 def _save_token(token: str) -> None:
-    _ENV_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _ENV_FILE.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     lines = _ENV_FILE.read_text().splitlines() if _ENV_FILE.exists() else []
     lines = [l for l in lines if not l.startswith("CHECKDK_TOKEN=")]
     lines.append(f"CHECKDK_TOKEN={token}")
     _ENV_FILE.write_text("\n".join(lines) + "\n")
+    # Restrict permissions so only the owning user can read the token
+    try:
+        _ENV_FILE.chmod(0o600)
+    except OSError:
+        pass  # Windows or other OS without chmod support
 
 
 def _remove_token() -> None:
@@ -72,8 +77,19 @@ def _wait_for_token(port: int, timeout: int = 120) -> "str | None":
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
+            # Allow cross-origin fetch from the frontend (localhost:3000, checkdk.app, etc.)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
             self.end_headers()
             self.wfile.write(body)
+
+        def do_OPTIONS(self) -> None:
+            """Handle CORS preflight requests."""
+            self.send_response(204)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "*")
+            self.end_headers()
 
         def log_message(self, *_) -> None:
             pass  # silence access logs
@@ -110,8 +126,7 @@ def login_cmd() -> None:
     port = _find_free_port()
     callback_url = f"http://127.0.0.1:{port}/callback"
 
-    api = get_api_url()
-    base = api[: api.rindex("/api")] if "/api" in api else "https://checkdk.app"
+    base = get_frontend_url()
     encoded_cb = urllib.parse.quote(callback_url, safe="")
     login_url = f"{base}/login?cli_callback={encoded_cb}"
 

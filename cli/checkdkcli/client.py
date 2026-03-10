@@ -6,13 +6,21 @@ The base URL is read from $CHECKDK_API_URL (required).
 
 from __future__ import annotations
 
+import base64
+import json
 import os
+import sys
+import time
 from pathlib import Path
 from typing import Optional
 
 import requests
 
 _DEFAULT_TIMEOUT = 60  # seconds
+
+
+class AuthenticationError(Exception):
+    """Raised when a request fails due to missing or invalid auth."""
 
 
 def get_api_url() -> str:
@@ -25,6 +33,37 @@ def get_api_url() -> str:
     """
     url = os.getenv("CHECKDK_API_URL", "https://checkdk.app/api").strip().rstrip("/")
     return url
+
+
+def get_frontend_url() -> str:
+    """Return the frontend URL used for browser-based OAuth login.
+
+    Priority:
+        1. $CHECKDK_FRONTEND_URL environment variable
+        2. Derive from $CHECKDK_API_URL (strip /api suffix)
+        3. For localhost backends, assume frontend at localhost:3000
+        4. Fallback to https://checkdk.app (production)
+    """
+    explicit = os.getenv("CHECKDK_FRONTEND_URL")
+    if explicit:
+        return explicit.strip().rstrip("/")
+
+    api = get_api_url()
+
+    # Production: https://checkdk.app/api  →  https://checkdk.app
+    if "/api" in api:
+        return api[: api.rindex("/api")]
+
+    # Local dev: http://localhost:8000  →  http://localhost:3000
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(api)
+        if parsed.hostname in ("localhost", "127.0.0.1"):
+            return f"{parsed.scheme}://localhost:3000"
+    except Exception:
+        pass
+
+    return "https://checkdk.app"
 
 
 def get_ws_url() -> str:
@@ -63,29 +102,72 @@ def get_stored_token() -> Optional[str]:
     return None
 
 
+def is_token_expired(token: str) -> bool:
+    """Decode JWT payload (no signature check) and return True if expired.
+
+    Returns True on any decoding error (treat corrupt tokens as expired).
+    """
+    try:
+        parts = token.split(".")
+        if len(parts) != 3:
+            return True
+        # base64url → standard base64
+        payload_b64 = parts[1]
+        padding = 4 - len(payload_b64) % 4
+        if padding != 4:
+            payload_b64 += "=" * padding
+        payload_bytes = base64.urlsafe_b64decode(payload_b64)
+        payload = json.loads(payload_bytes)
+        exp = payload.get("exp")
+        if exp is None:
+            return False  # no expiry claim → treat as valid
+        return time.time() > float(exp)
+    except Exception:
+        return True
+
+
+def remove_stored_token() -> None:
+    """Remove CHECKDK_TOKEN from ~/.checkdk/.env and from os.environ."""
+    env_file = Path.home() / ".checkdk" / ".env"
+    if env_file.exists():
+        lines = [l for l in env_file.read_text().splitlines()
+                 if not l.startswith("CHECKDK_TOKEN=")]
+        env_file.write_text("\n".join(lines) + "\n")
+    if "CHECKDK_TOKEN" in os.environ:
+        del os.environ["CHECKDK_TOKEN"]
+
+
 def _auth_headers() -> dict:
     """Return Authorization header dict if a token is stored, else empty dict."""
     token = get_stored_token()
     return {"Authorization": f"Bearer {token}"} if token else {}
 
 
+def _handle_response(resp: requests.Response) -> dict:
+    """Check response for auth errors, then parse JSON."""
+    if resp.status_code == 401:
+        raise AuthenticationError(
+            "Session expired or invalid. Run `checkdk auth login` to re-authenticate."
+        )
+    resp.raise_for_status()
+    return resp.json()
+
+
 def _post(path: str, payload: dict, timeout: int = _DEFAULT_TIMEOUT) -> dict:
     """POST to the API and return the parsed JSON body.
 
-    Raises requests.HTTPError on non-2xx responses.
+    Raises AuthenticationError on 401, requests.HTTPError on other non-2xx.
     """
     url = f"{get_api_url()}{path}"
     resp = requests.post(url, json=payload, headers=_auth_headers(), timeout=timeout)
-    resp.raise_for_status()
-    return resp.json()
+    return _handle_response(resp)
 
 
 def _get(path: str, timeout: int = _DEFAULT_TIMEOUT) -> dict:
     """GET from the API and return the parsed JSON body."""
     url = f"{get_api_url()}{path}"
     resp = requests.get(url, headers=_auth_headers(), timeout=timeout)
-    resp.raise_for_status()
-    return resp.json()
+    return _handle_response(resp)
 
 
 def health_check() -> bool:

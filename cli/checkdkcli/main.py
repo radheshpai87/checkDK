@@ -17,6 +17,7 @@ from .commands.playground import playground_cmd
 from .commands.auth       import auth_cmd
 from .commands.monitor    import monitor_cmd
 from .commands.chaos      import chaos_cmd
+from .client              import AuthenticationError
 
 console = Console()
 
@@ -66,14 +67,42 @@ def cli(ctx: click.Context, debug: bool = False) -> None:
 
     sub = ctx.invoked_subcommand
     if sub and sub not in _PUBLIC_COMMANDS:
-        from .client import get_stored_token
-        if not get_stored_token():
+        from .client import get_stored_token, is_token_expired, remove_stored_token
+        token = get_stored_token()
+        if not token:
             console.print(
                 "\n[bold red]Not logged in.[/]\n\n"
                 "Run [bold cyan]checkdk auth login[/] to authenticate with your\n"
                 "GitHub or Google account, then try again.\n"
             )
             sys.exit(1)
+        if is_token_expired(token):
+            remove_stored_token()
+            console.print(
+                "\n[bold yellow]Session expired.[/]\n\n"
+                "Your authentication token has expired.\n"
+                "Run [bold cyan]checkdk auth login[/] to re-authenticate.\n"
+            )
+            sys.exit(1)
+        # Verify the token is actually valid with the current backend.
+        # This catches stale tokens left over from a different environment
+        # (e.g. production token used against a local dev backend).
+        try:
+            from .client import get_current_user as _verify_user
+            _verify_user()
+        except AuthenticationError:
+            remove_stored_token()
+            console.print(
+                "\n[bold yellow]Token is no longer valid.[/]\n\n"
+                "This can happen if you switched backends or the server\n"
+                "secret has changed. Run [bold cyan]checkdk auth login[/]\n"
+                "to re-authenticate.\n"
+            )
+            sys.exit(1)
+        except Exception:
+            # Network error — let it pass; the actual command will fail
+            # with a more contextual error message.
+            pass
 
     if ctx.invoked_subcommand is None:
         console.print(
@@ -105,6 +134,12 @@ def main() -> None:
         sys.exit(130)
     except SystemExit:
         raise
+    except AuthenticationError as exc:
+        console.print(
+            f"\n[bold red]{exc}[/]\n\n"
+            "Run [bold cyan]checkdk auth login[/] to re-authenticate.\n"
+        )
+        sys.exit(1)
     except Exception as exc:
         console.print(f"\n[bold red]Error:[/] {exc}")
         if "--debug" in sys.argv:

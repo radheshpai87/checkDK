@@ -11,10 +11,48 @@ npm install -g @checkdk/cli
 No Python required. A pre-compiled native binary is automatically selected for
 your platform (Linux x64/arm64, macOS x64/arm64, Windows x64).
 
+## Authentication (required)
+
+checkDK requires authentication before you can use any command (except `checkdk auth` and `checkdk init`).
+
+```bash
+# Sign in — opens your browser for GitHub/Google OAuth
+checkdk auth login
+```
+
+This starts a local callback server, opens the sign-in page in your browser,
+and receives the token automatically — no copy-pasting needed.
+Once authenticated, your session is stored locally at `~/.checkdk/.env` and
+persists until you explicitly log out or the token expires (7 days).
+
+If you try to run any command without logging in first, the CLI will prompt:
+
+```
+Not logged in.
+Run checkdk auth login to authenticate with your GitHub or Google account.
+```
+
+```bash
+# Check who you're logged in as
+checkdk auth whoami
+
+# Log out (removes stored token)
+checkdk auth logout
+```
+
+## Uninstall
+
+```bash
+npm uninstall -g @checkdk/cli
+
+# Optionally remove stored config and credentials
+rm -rf ~/.checkdk
+```
+
 ## Usage
 
 ```bash
-# Authenticate (opens browser)
+# Authenticate (required before using any command)
 checkdk auth login
 
 # Analyse a Docker Compose file (dry-run, no changes applied)
